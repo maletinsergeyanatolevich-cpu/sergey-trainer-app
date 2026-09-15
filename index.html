@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="description" content="Минималистичный интерфейс тренировок Сергея: один шаг, таймеры, история и офлайн-режим." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  
+  <style>
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f9fafb;
+  background: #090d14;
+  font-synthesis: none;
+  --surface: #131a26;
+  --surface-2: #1a2332;
+  --border: #2a3546;
+  --muted: #9aa7b8;
+  --accent: #7dd3fc;
+  --good: #86efac;
+  --warn: #fde68a;
+  --danger: #fca5a5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #162033 0, #090d14 45%); }
+button, input, textarea { font: inherit; }
+button { touch-action: manipulation; }
+.app-shell { width: min(100%, 620px); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
+.topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
+.top-actions{display:flex;align-items:center;gap:8px;}
+h1,h2,h3,p { margin-top:0; }
+h1 { font-size: 30px; margin-bottom: 0; }
+h2 { font-size: 26px; margin-bottom: 8px; }
+h3 { font-size: 18px; margin-bottom: 0; }
+.eyebrow,.label { letter-spacing:.13em; font-size:11px; font-weight:800; color:var(--accent); }
+.muted { color:var(--muted); line-height:1.45; }
+.screen { display:none; }
+.screen.active { display:block; }
+.card,.motivation-card,.step-card,.rest-card { background:rgba(19,26,38,.94); border:1px solid var(--border); border-radius:20px; padding:18px; margin-bottom:14px; box-shadow:0 16px 40px rgba(0,0,0,.22); }
+.compact { padding-bottom:14px; }
+.motivation-card { overflow:hidden; padding:0; }
+.motivation-image { width:100%; max-height:320px; object-fit:cover; display:block; }
+.motivation-fallback { min-height:190px; display:flex; flex-direction:column; justify-content:flex-end; padding:20px; background:linear-gradient(145deg,#22304a,#111827); }
+.motivation-fallback p { font-size:20px; font-weight:700; line-height:1.25; margin-bottom:0; max-width:460px; }
+.big-number { font-size:44px; font-weight:900; color:var(--accent); }
+.motivation-card .text-btn { margin:8px 14px 12px; }
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:16px; }
+.stat span,.stat small { display:block; color:var(--muted); }
+.stat strong { display:block; font-size:32px; margin:5px 0 2px; }
+.card-head,.row { display:flex; align-items:center; gap:12px; }
+.between { justify-content:space-between; }
+.badge { border:1px solid var(--border); color:var(--muted); border-radius:999px; padding:6px 9px; font-size:12px; white-space:nowrap; }
+.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.pain-btn,.small-actions button,.icon-btn,.text-btn { border:0; border-radius:14px; cursor:pointer; }
+.primary-btn { width:100%; min-height:54px; padding:14px 18px; background:#e5f6ff; color:#08111c; font-weight:900; letter-spacing:.03em; }
+.secondary-btn { min-height:58px; padding:14px; background:var(--surface-2); color:#fff; border:1px solid var(--border); font-weight:800; }
+.ghost-btn { width:100%; min-height:48px; margin-top:10px; background:transparent; color:var(--muted); border:1px solid var(--border); }
+.danger-btn { width:100%; min-height:54px; padding:14px; background:#ffd3d3; color:#441414; font-weight:900; }
+.pain-btn { width:100%; min-height:48px; background:transparent; color:var(--danger); border:1px solid #6e3a3a; font-weight:800; margin:14px 0; }
+.text-btn { background:transparent; color:var(--accent); padding:8px 4px; }
+.icon-btn { width:44px; height:44px; background:var(--surface); color:#fff; border:1px solid var(--border); font-size:24px; }
+.giant { min-height:72px; font-size:19px; }
+.action-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.small-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+.small-actions button { padding:11px; background:#101722; color:var(--muted); border:1px solid var(--border); }
+.small-actions button:last-child { grid-column:1 / -1; }
+.achievement-list { display:grid; gap:7px; margin:10px 0 16px; }
+.achievement { padding:9px 11px; border-left:3px solid var(--good); background:#101923; border-radius:6px 12px 12px 6px; font-size:14px; }
+.exercise-preview { display:grid; gap:10px; margin-top:14px; }
+.exercise-item { padding:12px; border:1px solid var(--border); border-radius:14px; background:#0f1621; }
+.exercise-item strong { display:block; }
+.exercise-item small { color:var(--muted); }
+.progress-line { width:100%; height:7px; background:#1c2634; border-radius:99px; overflow:hidden; margin-bottom:12px; }
+.progress-line div { height:100%; width:0; background:var(--accent); transition:width .2s ease; }
+.step-card { text-align:center; padding:26px 18px 20px; }
+.step-card h2 { font-size:31px; margin-top:16px; }
+.plan-value { font-size:24px; font-weight:800; margin:14px 0 6px; }
+.set-timer { font-variant-numeric:tabular-nums; font-size:50px; font-weight:900; margin:26px 0 18px; }
+.checklist { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-top:10px; }
+.check-dot { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; border:1px solid var(--border); color:var(--muted); font-size:12px; }
+.check-dot.done { background:#153322; color:var(--good); border-color:#285d3a; }
+.check-dot.current { border-color:var(--accent); color:var(--accent); }
+.field-block { margin-top:20px; }
+.field-block > label { display:block; color:var(--muted); font-size:13px; margin-bottom:8px; }
+.stepper { display:grid; grid-template-columns:58px 1fr 58px; align-items:center; gap:12px; }
+.stepper button { height:58px; border-radius:14px; background:#101722; color:#fff; border:1px solid var(--border); font-size:28px; }
+.stepper strong { text-align:center; font-size:40px; }
+.effort-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.effort-btn { min-height:82px; border-radius:14px; border:1px solid var(--border); background:#101722; color:#fff; padding:8px; }
+.effort-btn b { display:block; font-size:26px; }
+.effort-btn span { display:block; font-size:11px; color:var(--muted); }
+.effort-btn.selected { border-color:var(--accent); box-shadow:0 0 0 2px rgba(125,211,252,.2) inset; }
+.pain-box textarea { width:100%; border-radius:12px; border:1px solid #6e3a3a; background:#100f14; color:#fff; padding:12px; resize:vertical; }
+.metrics-strip { display:flex; justify-content:space-between; gap:10px; color:var(--muted); font-size:13px; margin:14px 0; }
+.metrics-strip b { color:#fff; }
+.rest-card { min-height:70vh; display:flex; flex-direction:column; justify-content:center; text-align:center; }
+.rest-countdown { font-size:78px; font-weight:900; font-variant-numeric:tabular-nums; margin:20px 0 8px; }
+.summary-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:18px 0; }
+.summary-stat { padding:12px; border:1px solid var(--border); border-radius:12px; background:#0f1621; }
+.summary-stat span { display:block; color:var(--muted); font-size:12px; }
+.summary-stat strong { display:block; font-size:24px; margin-top:4px; }
+.summary-message { padding:14px; border-radius:12px; background:#101923; margin-bottom:14px; line-height:1.45; }
+
+.summary-section-title { margin:20px 0 10px; letter-spacing:.13em; font-size:11px; font-weight:800; color:var(--accent); }
+.plan-fact-summary { display:grid; gap:12px; margin-bottom:16px; }
+.pf-exercise { border:1px solid var(--border); border-radius:16px; background:#0f1621; overflow:hidden; }
+.pf-head { padding:13px 14px 10px; border-bottom:1px solid var(--border); }
+.pf-head strong { display:block; font-size:17px; }
+.pf-head small { display:block; color:var(--muted); margin-top:4px; }
+.pf-row { display:grid; grid-template-columns:42px minmax(0,1fr) minmax(0,1fr); gap:8px; align-items:start; padding:10px 12px; border-bottom:1px solid rgba(42,53,70,.65); }
+.pf-row:last-child { border-bottom:0; }
+.pf-set { width:32px; height:32px; display:grid; place-items:center; border-radius:50%; border:1px solid var(--border); color:var(--muted); font-weight:800; }
+.pf-col { min-width:0; }
+.pf-col span { display:block; color:var(--muted); font-size:10px; letter-spacing:.09em; font-weight:800; margin-bottom:3px; }
+.pf-col b { display:block; font-size:14px; line-height:1.35; word-break:break-word; }
+.pf-col small { display:block; color:var(--muted); margin-top:4px; line-height:1.35; }
+.pf-row.ok .pf-set { background:#153322; color:var(--good); border-color:#285d3a; }
+.pf-row.warn .pf-set { background:#3a3213; color:var(--warn); border-color:#65551d; }
+.pf-row.danger .pf-set { background:#3b1717; color:var(--danger); border-color:#6e3a3a; }
+.pf-pain { grid-column:2 / -1; margin-top:-2px; color:var(--danger); font-size:12px; line-height:1.35; }
+@media (max-width:420px){ .pf-row{grid-template-columns:36px 1fr 1fr;padding:9px 9px;gap:6px}.pf-set{width:28px;height:28px}.pf-col b{font-size:13px} }
+
+.stacked-label { display:grid; gap:7px; margin:14px 0; color:var(--muted); }
+.stacked-label input { min-height:48px; border-radius:12px; border:1px solid var(--border); background:#0d131d; color:#fff; padding:10px 12px; }
+.toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); width:min(calc(100% - 32px),520px); padding:13px 15px; background:#e5f6ff; color:#08111c; border-radius:12px; font-weight:700; z-index:20; box-shadow:0 14px 45px rgba(0,0,0,.35); }
+.hidden { display:none !important; }
+@media (max-width:420px){
+  .app-shell{padding-left:12px;padding-right:12px}.rest-countdown{font-size:62px}.effort-grid{gap:5px}.effort-btn{padding:5px}.action-grid{grid-template-columns:1fr}.stats-grid{gap:8px}
+}
+
+.inline-muted { color:var(--muted); font-weight:400; font-size:12px; margin-left:6px; }
+.micro-note { margin:7px 0 0; color:var(--muted); font-size:11px; line-height:1.35; }
+
+.stop-session-btn{min-height:44px;border-radius:12px;border:1px solid #6e3a3a;background:#2a1111;color:var(--danger);padding:9px 11px;font-weight:900;font-size:11px;letter-spacing:.03em;cursor:pointer;}
+.stop-session-btn:active{transform:translateY(1px);}
+.weight-stepper{display:grid;grid-template-columns:58px minmax(0,1fr) 58px;gap:10px;align-items:center;}
+.weight-stepper button{height:58px;border-radius:14px;background:#101722;color:#fff;border:1px solid var(--border);font-size:28px;}
+.weight-stepper input{width:100%;min-height:58px;border-radius:14px;border:1px solid var(--border);background:#0d131d;color:#fff;padding:10px 8px;font-size:26px;font-weight:800;text-align:center;}
+.weight-reset{width:100%;min-height:42px;margin-top:8px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--accent);font-weight:800;}
+.summary-message.stopped{border:1px solid #6e3a3a;background:#241313;color:#ffd6d6;}
+
+.modal-overlay{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.78);display:grid;place-items:center;padding:16px;}
+.modal-card{width:min(100%,520px);max-height:calc(100vh - 32px);overflow:auto;background:#131a26;border:1px solid #6e3a3a;border-radius:20px;padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.55);}
+.modal-card h2{margin:8px 0 10px;}
+.modal-card textarea{width:100%;border-radius:12px;border:1px solid var(--border);background:#0d131d;color:#fff;padding:12px;resize:vertical;min-height:82px;}
+.danger-label{color:var(--danger);}
+
+.sync-test-status{margin:10px 0 14px;padding:10px 12px;border-radius:10px;background:#0f1621;border:1px solid var(--border);color:var(--muted);font-size:13px;line-height:1.35;}
+.sync-test-status.ok{border-color:#285d3a;background:#11291b;color:var(--good);}
+.sync-test-status.err{border-color:#6e3a3a;background:#241313;color:#ffd6d6;}
+
+</style>
+  <title>Тренер Сергея</title>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">ТРЕНЕР · v0.2.0 HTTPS</div>
+        <h1 id="screenTitle">Сегодня</h1>
+      </div>
+      <div class="top-actions">
+        <button id="stopSessionBtn" class="stop-session-btn hidden" type="button">ЗАКОНЧИТЬ ТРЕНИРОВКУ</button>
+        <button id="installBtn" class="icon-btn hidden" type="button" aria-label="Установить приложение">＋</button>
+      </div>
+    </header>
+
+    <section id="homeScreen" class="screen active" aria-labelledby="screenTitle">
+      <article class="motivation-card">
+        <img id="motivationImage" class="motivation-image hidden" alt="Мотивация" />
+        <div id="motivationFallback" class="motivation-fallback">
+          <div class="big-number">05:50</div>
+          <p>Ты сам выбрал этот путь. Сегодня нужен только следующий шаг.</p>
+        </div>
+        <button id="chooseMotivationBtn" class="text-btn" type="button">Выбрать свою картинку</button>
+        <input id="motivationInput" class="hidden" type="file" accept="image/*" />
+      </article>
+
+      <div class="stats-grid">
+        <article class="stat"><span>Серия</span><strong id="streakValue">0</strong><small>дней</small></article>
+        <article class="stat"><span>Обещал / сделал</span><strong id="promiseValue">—</strong><small>за 30 дней</small></article>
+      </div>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <span class="label">ПЛАН</span>
+            <h2 id="todayWorkoutName">Тренировка не загружена</h2>
+          </div>
+          <span id="syncBadge" class="badge">Локально</span>
+        </div>
+        <p id="todayWorkoutMeta" class="muted">Импортируй план тренера или используй тестовый план интерфейса.</p>
+        <div id="achievementList" class="achievement-list"></div>
+        <button id="primaryStartBtn" class="primary-btn" type="button">ОТКРЫТЬ ТРЕНИРОВКУ</button>
+      </article>
+
+      <div class="action-grid">
+        <button id="morning20Btn" class="secondary-btn" type="button">УТРЕННЯЯ 20 МИН</button>
+        <button id="emergency10Btn" class="secondary-btn" type="button">АВАРИЙНЫЕ 10 МИН</button>
+      </div>
+
+      <article class="card compact">
+        <div class="row between">
+          <div>
+            <span class="label">ДАННЫЕ</span>
+            <h3>План и история</h3>
+          </div>
+          <button id="importPlanBtn" class="text-btn" type="button">Импорт файла · резерв</button>
+          <input id="planInput" class="hidden" type="file" accept="application/json,.json" />
+        </div>
+        <div class="small-actions">
+          <button id="refreshPlanBtn" type="button">Обновить план</button>
+          <button id="syncNowBtn" type="button">Синхронизировать</button>
+          <button id="pastePlanBtn" type="button">Вставить план из буфера</button>
+          <button id="exportLastBtn" type="button">Экспорт последней</button>
+          <button id="exportAllBtn" type="button">Экспорт истории</button>
+          <button id="settingsBtn" type="button">Настройки</button>
+        </div>
+      </article>
+    </section>
+
+    <section id="previewScreen" class="screen">
+      <article class="card">
+        <span class="label">ПЕРЕД СТАРТОМ</span>
+        <h2 id="previewName">Тренировка</h2>
+        <p id="previewDescription" class="muted"></p>
+        <div id="exercisePreview" class="exercise-preview"></div>
+      </article>
+      <button id="beginSessionBtn" class="primary-btn" type="button">НАЧАТЬ ТРЕНИРОВКУ</button>
+      <button id="backHomeFromPreview" class="ghost-btn" type="button">Назад</button>
+    </section>
+
+    <section id="workoutScreen" class="screen">
+      <div class="progress-line"><div id="progressBar"></div></div>
+      <article class="step-card">
+        <span id="stepCounter" class="label">ПОДХОД</span>
+        <h2 id="exerciseName">—</h2>
+        <div id="exercisePlan" class="plan-value">—</div>
+        <p id="coachNote" class="muted"></p>
+        <div id="setTimer" class="set-timer">00:00</div>
+        <button id="startSetBtn" class="primary-btn giant" type="button">НАЧАТЬ ПОДХОД</button>
+        <button id="finishSetBtn" class="danger-btn giant hidden" type="button">ЗАКОНЧИЛ</button>
+      </article>
+      <div id="completedChecklist" class="checklist"></div>
+    </section>
+
+    <section id="resultScreen" class="screen">
+      <article class="card">
+        <span class="label">РЕЗУЛЬТАТ ПОДХОДА</span>
+        <h2 id="resultExerciseName">—</h2>
+
+        <div class="field-block">
+          <label>Повторения</label>
+          <div class="stepper">
+            <button id="repsMinus" type="button">−</button>
+            <strong id="repsValue">0</strong>
+            <button id="repsPlus" type="button">＋</button>
+          </div>
+        </div>
+
+        <div class="field-block">
+          <label>Вес, кг <span class="inline-muted">по плану: <b id="plannedWeightValue">0</b></span></label>
+          <div class="weight-stepper">
+            <button id="weightMinus" type="button" aria-label="Уменьшить вес">−</button>
+            <input id="weightInput" type="number" inputmode="decimal" min="0" step="0.5" value="0" aria-label="Фактический вес" />
+            <button id="weightPlus" type="button" aria-label="Увеличить вес">＋</button>
+          </div>
+          <button id="resetWeightBtn" class="weight-reset" type="button">ВЕРНУТЬ ВЕС ПО ПЛАНУ</button>
+          <p class="micro-note">По умолчанию уже стоит вес тренера. Меняй только если фактически взял другой вес.</p>
+        </div>
+
+        <div class="field-block">
+          <label>Нагрузка</label>
+          <div class="effort-grid">
+            <button class="effort-btn selected" data-effort="0" type="button"><b>0</b><span>нормально</span></button>
+            <button class="effort-btn" data-effort="1" type="button"><b>1</b><span>тяжело, могу</span></button>
+            <button class="effort-btn" data-effort="2" type="button"><b>2</b><span>предел</span></button>
+          </div>
+        </div>
+
+        <button id="painToggle" class="pain-btn" type="button">БОЛЬ / ТЯНЕТ</button>
+        <div id="painBox" class="pain-box hidden">
+          <textarea id="painText" rows="3" placeholder="Где и что чувствуешь? Например: тянет правое плечо"></textarea>
+        </div>
+
+        <div class="metrics-strip">
+          <span>Подход <b id="setDurationValue">—</b></span>
+          <span>Ответ <b id="responseDelayValue">—</b></span>
+        </div>
+        <button id="confirmResultBtn" class="primary-btn" type="button">ПРИНЯТО · ОТДЫХ</button>
+      </article>
+    </section>
+
+    <section id="restScreen" class="screen">
+      <article class="rest-card">
+        <span class="label">ОТДЫХ</span>
+        <div id="restCountdown" class="rest-countdown">02:00</div>
+        <p id="restHint" class="muted">Следующий шаг будет показан автоматически.</p>
+        <button id="nextSetBtn" class="primary-btn giant" type="button">НАЧАТЬ СЛЕДУЮЩИЙ</button>
+        <button id="skipRestBtn" class="ghost-btn" type="button">Закончить отдых раньше</button>
+      </article>
+    </section>
+
+    <section id="summaryScreen" class="screen">
+      <article class="card">
+        <span id="summaryStatusLabel" class="label">ГОТОВО</span>
+        <h2 id="summaryTitle">Тренировка сохранена</h2>
+        <div id="summaryStats" class="summary-stats"></div>
+        <div id="summaryMessage" class="summary-message"></div>
+        <div class="summary-section-title">ПЛАН / ФАКТ</div>
+        <div id="planFactSummary" class="plan-fact-summary"></div>
+        <button id="shareCurrentBtn" class="primary-btn" type="button">СИНХРОНИЗИРОВАТЬ С ЖУРНАЛОМ</button>
+        <button id="exportCurrentBtn" class="ghost-btn" type="button">Резервный JSON</button>
+        <button id="finishSessionBtn" class="ghost-btn" type="button">На главный экран</button>
+      </article>
+    </section>
+
+    <section id="settingsScreen" class="screen">
+      <article class="card">
+        <span class="label">НАСТРОЙКИ</span>
+        <h2>Подключение</h2>
+        <label class="stacked-label">Sync endpoint
+          <input id="syncEndpointInput" type="url" placeholder="https://..." />
+        </label>
+        <label class="stacked-label">Ключ синхронизации
+          <input id="syncApiKeyInput" type="password" autocomplete="off" placeholder="Личный ключ" />
+        </label>
+        <label class="stacked-label">Имя
+          <input id="userNameInput" type="text" value="Сергей" />
+        </label>
+        <p class="muted">Адрес backend уже заполнен. Ключ синхронизации вводится один раз на этом телефоне и хранится только локально в приложении.</p>
+        <button id="testConnectionBtn" class="primary-btn" type="button">ПРОВЕРИТЬ СВЯЗЬ</button>
+        <p id="connectionTestStatus" class="sync-test-status">Связь ещё не проверялась на этом телефоне.</p>
+        <button id="saveSettingsBtn" class="ghost-btn" type="button">СОХРАНИТЬ НАСТРОЙКИ</button>
+        <button id="backHomeFromSettings" class="ghost-btn" type="button">Назад</button>
+      </article>
+    </section>
+
+
+    <div id="stopDialog" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="stopDialogTitle">
+      <div class="modal-card">
+        <span class="label danger-label">ДОСРОЧНАЯ ОСТАНОВКА</span>
+        <h2 id="stopDialogTitle">Закончить тренировку сейчас?</h2>
+        <p id="stopDialogProgress" class="muted">Выполненные подходы сохранятся, остальные останутся невыполненными.</p>
+        <label class="stacked-label">Причина <span class="inline-muted">необязательно</span>
+          <textarea id="stopReasonInput" rows="3" placeholder="Например: время, самочувствие, боль, работа"></textarea>
+        </label>
+        <button id="confirmStopBtn" class="danger-btn" type="button">ОСТАНОВИТЬ И СОХРАНИТЬ</button>
+        <button id="cancelStopBtn" class="ghost-btn" type="button">ПРОДОЛЖИТЬ ТРЕНИРОВКУ</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+  </main>
+  <script>
+'use strict';
+
+const STORAGE_KEY = 'sergey_trainer_v01';
+const PERSONAL_SYNC_ENDPOINT = 'https://script.google.com/macros/s/AKfycbw0vsdO_2TrRN1uEBM8_MaKliVMu_K6igHjmIhCYeF9NEUlEeaZWfuFDx8dhsK5HheuVw/exec';
+const PERSONAL_SYNC_API_KEY = '';
+const BACKGROUND_SYNC_ALLOWED = !window.__MANUAL_SYNC_ONLY__ && ['http:','https:'].includes(window.location.protocol);
+const DEFAULT_STATE = {
+  plan: null,
+  history: [],
+  active: null,
+  settings: { userName: 'Сергей', syncEndpoint: PERSONAL_SYNC_ENDPOINT, syncApiKey: '', motivationImage: '', lastSyncAt: null, lastSyncError: '' },
+  adherence: { promised: [], completed: [] }
+};
+
+const $ = id => document.getElementById(id);
+const screens = [...document.querySelectorAll('.screen')];
+let state = loadState();
+let setTicker = null;
+let restTicker = null;
+let installPrompt = null;
+let resultDraft = { reps: 0, effort: 0, painText: '', weight: 0 };
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return structuredClone(DEFAULT_STATE);
+    const parsed=JSON.parse(raw); const base=structuredClone(DEFAULT_STATE); const merged={ ...base, ...parsed, settings:{...base.settings,...(parsed.settings||{})}, adherence:{...base.adherence,...(parsed.adherence||{})} };
+    if(!String(merged.settings.syncEndpoint||'').trim()) merged.settings.syncEndpoint=PERSONAL_SYNC_ENDPOINT;
+        return merged;
+  } catch {
+    return structuredClone(DEFAULT_STATE);
+  }
+}
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function nowIso() { return new Date().toISOString(); }
+function secondsBetween(a,b) { return Math.max(0, Math.round((new Date(b)-new Date(a))/1000)); }
+function fmt(sec) { sec=Math.max(0,Math.round(sec||0)); return `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`; }
+function dateKey(d=new Date()) {
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function clone(v) { return JSON.parse(JSON.stringify(v)); }
+function showToast(msg) { const t=$('toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(showToast.t); showToast.t=setTimeout(()=>t.classList.add('hidden'),2800); }
+function showScreen(id,title) { screens.forEach(s=>s.classList.toggle('active',s.id===id)); if(title) $('screenTitle').textContent=title; updateStopButton(); window.scrollTo({top:0,behavior:'instant'}); }
+function updateStopButton(){ const b=$('stopSessionBtn'); if(!b)return; b.classList.toggle('hidden',!state.active); }
+
+function normalizePlan(plan) {
+  if (!plan || !Array.isArray(plan.exercises) || !plan.exercises.length) throw new Error('В плане нет упражнений');
+  const p=clone(plan);
+  p.schema_version ||= 1;
+  p.session_id ||= `session-${Date.now()}`;
+  p.plan_version ||= 1;
+  p.name ||= 'Тренировка';
+  p.description ||= '';
+  p.exercises.forEach((e,ei)=>{
+    e.exercise_id ||= `exercise-${ei+1}`;
+    e.name ||= `Упражнение ${ei+1}`;
+    e.technique_note ||= '';
+    e.primary_muscles = Array.isArray(e.primary_muscles) ? e.primary_muscles : [];
+    e.support_muscles = Array.isArray(e.support_muscles) ? e.support_muscles : [];
+    e.goal_links = Array.isArray(e.goal_links) ? e.goal_links : [];
+    e.coach_rationale ||= '';
+    if(!Array.isArray(e.sets)||!e.sets.length) throw new Error(`Нет подходов: ${e.name}`);
+    e.sets.forEach((s,si)=>{
+      s.set_number ||= si+1;
+      s.planned_reps_min ??= 0;
+      s.planned_reps_max ??= s.planned_reps_min;
+      s.planned_weight ??= 0;
+      s.planned_rest_sec ??= 90;
+    });
+  });
+  return p;
+}
+function flattenPlan(plan) {
+  const steps=[];
+  plan.exercises.forEach((exercise,ei)=>exercise.sets.forEach((set,si)=>steps.push({
+    exerciseIndex:ei,setIndex:si,exercise_id:exercise.exercise_id,exercise_name:exercise.name,
+    technique_note:exercise.technique_note||'',
+    primary_muscles:clone(exercise.primary_muscles||[]),
+    support_muscles:clone(exercise.support_muscles||[]),
+    goal_links:clone(exercise.goal_links||[]),
+    coach_rationale:exercise.coach_rationale||'',
+    ...set
+  })));
+  return steps;
+}
+function planTargetReps(step) { return Number(step.planned_reps_max ?? step.planned_reps_min ?? 0); }
+function planLabel(step) {
+  const min=Number(step.planned_reps_min||0), max=Number(step.planned_reps_max||min);
+  const reps=min===max?`${max} повт.`:`${min}–${max} повт.`;
+  const weight=Number(step.planned_weight||0)>0?` · ${step.planned_weight} кг`:'';
+  return `${reps}${weight}`;
+}
+
+function setPlanText(step) {
+  const min=Number(step.planned_reps_min||0), max=Number(step.planned_reps_max||min);
+  const reps=min===max?`${max} повт.`:`${min}–${max} повт.`;
+  const weight=Number(step.planned_weight||0)>0?`${step.planned_weight} кг × `:'';
+  return `${weight}${reps}`;
+}
+function setFactText(result) {
+  if(!result) return 'не выполнен';
+  const weight=Number(result.actual_weight||0)>0?`${result.actual_weight} кг × `:'';
+  return `${weight}${Number(result.actual_reps||0)} повт.`;
+}
+function resultStatus(step,result) {
+  if(!result) return 'danger';
+  if(result.pain_flag) return 'danger';
+  const reps=Number(result.actual_reps||0), min=Number(step.planned_reps_min||0), max=Number(step.planned_reps_max??min);
+  if(result.load_level_0_2===2 || reps<min) return 'warn';
+  return 'ok';
+}
+
+async function loadSamplePlanIfNeeded() {
+  if(state.plan) return;
+  try {
+    if(window.__SAMPLE_PLAN__){ state.plan=normalizePlan(window.__SAMPLE_PLAN__); saveState(); return; }
+    const r=await fetch('./sample-workout.json');
+    state.plan=normalizePlan(await r.json()); saveState();
+  } catch { /* offline first open fallback handled by import */ }
+}
+
+function calculateStreak() {
+  const days=new Set(state.history.filter(h=>h.status==='completed').map(h=>h.completed_date).filter(Boolean));
+  let d=new Date(), streak=0;
+  while(days.has(dateKey(d))){ streak++; d.setDate(d.getDate()-1); }
+  return streak;
+}
+function promiseRate() {
+  const promised=(state.adherence?.promised||[]).slice(-30);
+  if(!promised.length) return '—';
+  const done=new Set((state.adherence?.completed||[]));
+  const n=promised.filter(x=>done.has(x)).length;
+  return `${Math.round(n/promised.length*100)}%`;
+}
+let bundledMotivationFiles = null;
+async function loadBundledMotivation(){
+  if(state.settings?.motivationImage) return;
+  try{
+    if(!bundledMotivationFiles){
+      const r=await fetch('./motivation/index.json');
+      if(!r.ok) throw new Error('motivation index');
+      const data=await r.json();
+      bundledMotivationFiles=Array.isArray(data.files)?data.files:[];
+    }
+    if(!bundledMotivationFiles.length) return;
+    const key=dateKey();
+    let hash=0; for(const ch of key) hash=((hash*31)+ch.charCodeAt(0))>>>0;
+    const file=bundledMotivationFiles[hash%bundledMotivationFiles.length];
+    const img=$('motivationImage');
+    img.onload=()=>{$('motivationFallback').classList.add('hidden');img.classList.remove('hidden');};
+    img.onerror=()=>{img.classList.add('hidden');$('motivationFallback').classList.remove('hidden');};
+    img.src=`./motivation/${encodeURIComponent(file)}`;
+  }catch{/* single HTML / offline without bundle keeps fallback */}
+}
+
+function renderHome() {
+  $('streakValue').textContent=calculateStreak();
+  $('promiseValue').textContent=promiseRate();
+  const p=state.plan;
+  $('todayWorkoutName').textContent=p?p.name:'Тренировка не загружена';
+  $('todayWorkoutMeta').textContent=p?(p.description||`${flattenPlan(p).length} подходов`):'Импортируй план тренера или используй тестовый план интерфейса.';
+  $('achievementList').innerHTML='';
+  const ach=p?.motivation?.achievements||[];
+  ach.slice(0,3).forEach(a=>{const d=document.createElement('div');d.className='achievement';d.textContent=a;$('achievementList').appendChild(d);});
+  const img=state.settings?.motivationImage;
+  $('motivationImage').classList.toggle('hidden',!img); $('motivationFallback').classList.toggle('hidden',!!img);
+  if(img) $('motivationImage').src=img; else loadBundledMotivation();
+  renderSyncBadge();
+}
+function renderPreview() {
+  const p=state.plan; if(!p){showToast('Сначала загрузи план');return;}
+  $('previewName').textContent=p.name; $('previewDescription').textContent=p.description||'';
+  $('exercisePreview').innerHTML='';
+  p.exercises.forEach(e=>{
+    const d=document.createElement('div');d.className='exercise-item';
+    const total=e.sets.length; const reps=[...new Set(e.sets.map(s=>planTargetReps(s)))].join('/');
+    d.innerHTML=`<strong>${escapeHtml(e.name)}</strong><small>${total} подх. · цель повт. ${escapeHtml(reps)}</small>${e.technique_note?`<p class="muted">${escapeHtml(e.technique_note)}</p>`:''}`;
+    $('exercisePreview').appendChild(d);
+  });
+  showScreen('previewScreen','План');
+}
+function escapeHtml(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+
+function startSession() {
+  const p=state.plan; if(!p) return;
+  const steps=flattenPlan(p);
+  const promisedDate=dateKey();
+  state.adherence ||= {promised:[],completed:[]};
+  if(!state.adherence.promised.includes(promisedDate)) state.adherence.promised.push(promisedDate);
+  state.active={
+    session_id:p.session_id, plan_version:p.plan_version, name:p.name, started_at:nowIso(), completed_at:null,
+    plan_snapshot:clone(p),
+    stepIndex:0, steps, results:[], setStartedAt:null, setFinishedAt:null, resultOpenedAt:null,
+    previousResultIndex:null, status:'active'
+  };
+  saveState(); renderWorkout(); showScreen('workoutScreen','Тренировка');
+}
+function currentStep(){return state.active?.steps?.[state.active.stepIndex]||null;}
+function renderChecklist(){
+  const a=state.active;if(!a)return;$('completedChecklist').innerHTML='';
+  a.steps.forEach((_,i)=>{const d=document.createElement('div');d.className='check-dot '+(i<a.results.length?'done':i===a.stepIndex?'current':'');d.textContent=i<a.results.length?'✓':i+1;$('completedChecklist').appendChild(d);});
+}
+function renderWorkout(){
+  const a=state.active, step=currentStep(); if(!a||!step)return;
+  $('stepCounter').textContent=`ПОДХОД ${a.stepIndex+1} ИЗ ${a.steps.length} · ${step.set_number}`;
+  $('exerciseName').textContent=step.exercise_name; $('exercisePlan').textContent=planLabel(step); $('coachNote').textContent=step.technique_note||'';
+  const progress=a.steps.length?Math.round(a.results.length/a.steps.length*100):0; $('progressBar').style.width=`${progress}%`;
+  $('startSetBtn').classList.toggle('hidden',!!a.setStartedAt); $('finishSetBtn').classList.toggle('hidden',!a.setStartedAt);
+  $('setTimer').textContent='00:00'; renderChecklist();
+}
+function tickSet(){const a=state.active;if(!a?.setStartedAt)return;$('setTimer').textContent=fmt(secondsBetween(a.setStartedAt,nowIso()));}
+function startSet(){
+  const a=state.active;if(!a)return;
+  if(a.previousResultIndex!==null){
+    const prev=a.results[a.previousResultIndex]; if(prev&&!prev.rest_actual_sec){prev.rest_actual_sec=secondsBetween(prev.finished_at,nowIso());}
+    a.previousResultIndex=null;
+  }
+  a.setStartedAt=nowIso(); a.setFinishedAt=null; a.resultOpenedAt=null; saveState(); renderWorkout();
+  clearInterval(setTicker);tickSet();setTicker=setInterval(tickSet,250);
+}
+function finishSet(){
+  const a=state.active;if(!a?.setStartedAt)return;clearInterval(setTicker);a.setFinishedAt=nowIso();a.resultOpenedAt=a.setFinishedAt;saveState();
+  const step=currentStep(); resultDraft={reps:planTargetReps(step),effort:0,painText:'',weight:Number(step.planned_weight||0)};
+  $('resultExerciseName').textContent=step.exercise_name; $('repsValue').textContent=resultDraft.reps;
+  $('plannedWeightValue').textContent=Number(step.planned_weight||0); $('weightInput').value=String(resultDraft.weight);
+  $('setDurationValue').textContent=fmt(secondsBetween(a.setStartedAt,a.setFinishedAt)); $('responseDelayValue').textContent='00:00';
+  document.querySelectorAll('.effort-btn').forEach(b=>b.classList.toggle('selected',b.dataset.effort==='0'));
+  $('painBox').classList.add('hidden');$('painText').value='';showScreen('resultScreen','Результат');startResponseDelayTicker();
+}
+function startResponseDelayTicker(){clearInterval(startResponseDelayTicker.t);startResponseDelayTicker.t=setInterval(()=>{const a=state.active;if(!a?.setFinishedAt)return;$('responseDelayValue').textContent=fmt(secondsBetween(a.setFinishedAt,nowIso()));},500);}
+function confirmResult(){
+  clearInterval(startResponseDelayTicker.t); const a=state.active,step=currentStep(); if(!a||!step)return;
+  const confirmedAt=nowIso();
+  const record={
+    session_id:a.session_id,plan_version:a.plan_version,exercise_id:step.exercise_id,exercise_name:step.exercise_name,set_number:step.set_number,
+    started_at:a.setStartedAt,finished_at:a.setFinishedAt,set_duration_sec:secondsBetween(a.setStartedAt,a.setFinishedAt),
+    actual_weight:Number(resultDraft.weight||0),actual_reps:Number(resultDraft.reps),load_level_0_2:Number(resultDraft.effort),
+    pain_flag:Boolean(resultDraft.painText.trim()),pain_text:resultDraft.painText.trim(),response_delay_sec:secondsBetween(a.setFinishedAt,confirmedAt),
+    rest_planned_sec:Number(step.planned_rest_sec||0),rest_actual_sec:null,completion_status:'completed',user_note:'',sync_status:'local'
+  };
+  a.results.push(record);a.previousResultIndex=a.results.length-1;a.setStartedAt=null;a.setFinishedAt=null;a.resultOpenedAt=null;a.stepIndex++;
+  saveState();
+  if(a.stepIndex>=a.steps.length){ finalizeSession(); return; }
+  beginRest(record.rest_planned_sec);
+}
+function beginRest(seconds){
+  const a=state.active;if(!a)return;a.restEndsAt=new Date(Date.now()+seconds*1000).toISOString();saveState();showScreen('restScreen','Отдых');
+  clearInterval(restTicker);updateRest();restTicker=setInterval(updateRest,250);
+}
+function updateRest(){
+  const a=state.active;if(!a?.restEndsAt)return;const left=Math.ceil((new Date(a.restEndsAt)-new Date())/1000);$('restCountdown').textContent=fmt(left);
+  $('restHint').textContent=left>0?`Плановый отдых. Можно начать раньше, если это предусмотрено тренером.`:'Плановый отдых завершён. Готов — начинай следующий шаг.';
+  if(left<=0){clearInterval(restTicker); if(navigator.vibrate) navigator.vibrate([150,80,150]);}
+}
+function leaveRestAndPrepare(){clearInterval(restTicker);const a=state.active;if(!a)return;a.restEndsAt=null;saveState();renderWorkout();showScreen('workoutScreen','Тренировка');}
+function openStopDialog(){
+  const a=state.active;if(!a)return;
+  const done=a.results.length,total=(a.steps||[]).length;
+  $('stopDialogProgress').textContent=`Сейчас подтверждено ${done} из ${total} подходов. Сохранится только факт. Остальные подходы НЕ будут засчитаны.`;
+  $('stopReasonInput').value='';
+  $('stopDialog').classList.remove('hidden');
+  setTimeout(()=>{try{$('stopReasonInput').focus();}catch{}},50);
+}
+function closeStopDialog(){
+  $('stopDialog').classList.add('hidden');
+}
+function confirmAbortSession(){
+  const a=state.active;if(!a){closeStopDialog();return;}
+  const reason=String($('stopReasonInput').value||'').trim();
+  closeStopDialog();
+  clearInterval(setTicker);clearInterval(restTicker);clearInterval(startResponseDelayTicker.t);
+  const stoppedAt=nowIso();
+  const step=currentStep();
+  let stage='before_set';
+  if(a.restEndsAt) stage='rest';
+  else if(a.setFinishedAt) stage='awaiting_result';
+  else if(a.setStartedAt) stage='during_set';
+  if(a.previousResultIndex!==null){
+    const prev=a.results[a.previousResultIndex];
+    if(prev&&prev.rest_actual_sec===null) prev.rest_actual_sec=secondsBetween(prev.finished_at,stoppedAt);
+  }
+  a.completed_at=stoppedAt;
+  a.status='stopped_early';
+  a.stop_reason=reason;
+  a.stop_context={
+    stage,
+    step_index:a.stepIndex,
+    exercise_id:step?.exercise_id||null,
+    exercise_name:step?.exercise_name||null,
+    set_number:step?.set_number??null,
+    set_started_at:a.setStartedAt||null,
+    set_finished_at:a.setFinishedAt||null,
+    set_duration_sec:a.setStartedAt?(a.setFinishedAt?secondsBetween(a.setStartedAt,a.setFinishedAt):secondsBetween(a.setStartedAt,stoppedAt)):null
+  };
+  const completedDate=dateKey();
+  const entry={...clone(a),completed_date:completedDate};
+  state.history.push(entry);
+  state.active=null;
+  saveState();renderSummary(entry);showScreen('summaryScreen','Остановлено');attemptSync(entry);
+}
+
+function finalizeSession(){
+  const a=state.active;if(!a)return;clearInterval(restTicker);a.completed_at=nowIso();a.status='completed';
+  if(a.previousResultIndex!==null){const last=a.results[a.previousResultIndex];if(last&&!last.rest_actual_sec)last.rest_actual_sec=0;}
+  const completedDate=dateKey();const entry={...clone(a),completed_date:completedDate};state.history.push(entry);
+  state.adherence ||= {promised:[],completed:[]};if(!state.adherence.completed.includes(completedDate))state.adherence.completed.push(completedDate);
+  state.active=null;saveState();renderSummary(entry);showScreen('summaryScreen','Готово');attemptSync(entry);
+}
+function renderSummary(entry){
+  const total=entry.results.length,hard=entry.results.filter(r=>r.load_level_0_2===2).length,pain=entry.results.filter(r=>r.pain_flag).length;
+  const duration=secondsBetween(entry.started_at,entry.completed_at);
+  const plannedSteps=entry.steps||[];
+  const plannedReps=plannedSteps.reduce((sum,x)=>sum+planTargetReps(x),0);
+  const actualReps=entry.results.reduce((sum,x)=>sum+Number(x.actual_reps||0),0);
+  const setCompletion=plannedSteps.length?Math.round(total/plannedSteps.length*100):0;
+  const repCompletion=plannedReps?Math.round(actualReps/plannedReps*100):0;
+  const stopped=entry.status!=='completed';
+  $('summaryStatusLabel').textContent=stopped?'ОСТАНОВЛЕНО':'ГОТОВО';
+  $('summaryTitle').textContent=stopped?'Тренировка завершена досрочно':'Тренировка сохранена';
+  $('summaryStats').innerHTML=`
+    <div class="summary-stat"><span>Подходов</span><strong>${total}/${plannedSteps.length}</strong></div>
+    <div class="summary-stat"><span>Выполнено</span><strong>${setCompletion}%</strong></div>
+    <div class="summary-stat"><span>Повторы</span><strong>${actualReps}/${plannedReps}</strong></div>
+    <div class="summary-stat"><span>Повторы к плану</span><strong>${repCompletion}%</strong></div>
+    <div class="summary-stat"><span>Время</span><strong>${fmt(duration)}</strong></div>
+    <div class="summary-stat"><span>На пределе</span><strong>${hard}</strong></div>
+    <div class="summary-stat"><span>Боль/тянет</span><strong>${pain}</strong></div>`;
+  const box=$('summaryMessage');
+  box.classList.toggle('stopped',stopped);
+  if(stopped){
+    const left=Math.max(0,plannedSteps.length-total);
+    box.textContent=`Остановка сохранена честно: выполнено ${total} из ${plannedSteps.length} подходов (${setCompletion}%). Невыполнено: ${left}.${entry.stop_reason?` Причина: ${entry.stop_reason}.`:''} Это не засчитано как полностью выполненная тренировка.`;
+  }else{
+    box.textContent=entry.plan_snapshot?.motivation?.message||state.plan?.motivation?.message||'Данные сохранены. Следующее решение принимает тренер по истории, а не по памяти.';
+  }
+  renderPlanFact(entry);
+  const shareBtn=$('shareCurrentBtn');
+  const exportBtn=$('exportCurrentBtn');
+  if(syncConfigured()){
+    exportBtn.textContent='Резервный JSON';
+    exportBtn.onclick=()=>downloadJson(entry,`training-${completedFileDate(entry.completed_at)}.json`);
+    if(entry.sync_status==='synced'){
+      shareBtn.textContent='ЗАПИСАНО В ЖУРНАЛ ✓';
+      shareBtn.disabled=true;
+      shareBtn.onclick=null;
+    }else{
+      shareBtn.textContent='СИНХРОНИЗИРОВАТЬ С ЖУРНАЛОМ';
+      shareBtn.disabled=false;
+      shareBtn.onclick=async()=>{
+        shareBtn.disabled=true;
+        shareBtn.textContent='СИНХРОНИЗАЦИЯ…';
+        await syncOneSession(entry,{silent:false});
+        renderSummary(entry);
+      };
+    }
+  }else{
+    shareBtn.textContent='ПОДЕЛИТЬСЯ С ТРЕНЕРОМ';
+    shareBtn.disabled=false;
+    shareBtn.onclick=()=>shareSession(entry);
+    exportBtn.textContent='Сохранить JSON';
+    exportBtn.onclick=()=>downloadJson(entry,`training-${completedFileDate(entry.completed_at)}.json`);
+  }
+}
+
+function renderPlanFact(entry){
+  const box=$('planFactSummary');
+  box.innerHTML='';
+  const steps=entry.steps||[];
+  const groups=[];
+  steps.forEach(step=>{
+    let g=groups.find(x=>x.exercise_id===step.exercise_id);
+    if(!g){g={exercise_id:step.exercise_id,name:step.exercise_name,steps:[]};groups.push(g);}
+    g.steps.push(step);
+  });
+  groups.forEach(g=>{
+    const card=document.createElement('section');
+    card.className='pf-exercise';
+    const results=entry.results.filter(r=>r.exercise_id===g.exercise_id);
+    const planned=g.steps.reduce((sum,x)=>sum+planTargetReps(x),0);
+    const actual=results.reduce((sum,x)=>sum+Number(x.actual_reps||0),0);
+    const head=document.createElement('div');
+    head.className='pf-head';
+    head.innerHTML=`<strong>${escapeHtml(g.name)}</strong><small>План: ${g.steps.length} подх. · ${planned} повт. &nbsp; Факт: ${results.length} подх. · ${actual} повт.</small>`;
+    card.appendChild(head);
+    g.steps.forEach(step=>{
+      const r=results.find(x=>Number(x.set_number)===Number(step.set_number));
+      const row=document.createElement('div');
+      row.className=`pf-row ${resultStatus(step,r)}`;
+      const actualMeta=r?`нагрузка ${r.load_level_0_2} · подход ${fmt(r.set_duration_sec)}${r.rest_actual_sec!==null?` · отдых ${fmt(r.rest_actual_sec)}`:''}`:'нет данных';
+      row.innerHTML=`
+        <div class="pf-set">${r?'✓':'!'}</div>
+        <div class="pf-col"><span>ПЛАН · ${step.set_number}</span><b>${escapeHtml(setPlanText(step))}</b><small>отдых ${fmt(step.planned_rest_sec)}</small></div>
+        <div class="pf-col"><span>ФАКТ</span><b>${escapeHtml(setFactText(r))}</b><small>${escapeHtml(actualMeta)}</small></div>
+        ${r?.pain_flag?`<div class="pf-pain">Боль/тянет: ${escapeHtml(r.pain_text||'отмечено')}</div>`:''}`;
+      card.appendChild(row);
+    });
+    box.appendChild(card);
+  });
+}
+
+function completedFileDate(v){return String(v||nowIso()).slice(0,19).replace(/[:T]/g,'-');}
+function downloadJson(data,name){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),500);}
+function coachShareText(entry){
+  const lines=[`Результат тренировки: ${entry.name||'Тренировка'}`,`Статус: ${entry.status==='completed'?'выполнена':'остановлена досрочно'}`,`session_id: ${entry.session_id}`,`Начало: ${entry.started_at}`,`Окончание: ${entry.completed_at}`]; if(entry.stop_reason) lines.push(`Причина остановки: ${entry.stop_reason}`);
+  const groups=[];
+  (entry.steps||[]).forEach(step=>{let g=groups.find(x=>x.id===step.exercise_id);if(!g){g={id:step.exercise_id,name:step.exercise_name,steps:[]};groups.push(g);}g.steps.push(step);});
+  groups.forEach(g=>{
+    lines.push('',g.name);
+    g.steps.forEach(step=>{const r=(entry.results||[]).find(x=>x.exercise_id===g.id&&Number(x.set_number)===Number(step.set_number));
+      if(!r){lines.push(`  ${step.set_number}. не выполнен`);return;}
+      lines.push(`  ${step.set_number}. ${setFactText(r)}; нагрузка ${r.load_level_0_2}; подход ${fmt(r.set_duration_sec)}; отдых ${fmt(r.rest_actual_sec||0)}${r.pain_flag?`; БОЛЬ/ТЯНЕТ: ${r.pain_text||'отмечено'}`:''}`);
+    });
+  });
+  lines.push('','Полный структурированный факт приложен JSON-файлом, если устройство поддерживает передачу файлов.');
+  return lines.join('\n');
+}
+async function shareSession(entry){
+  if(!entry){showToast('Нет завершённой тренировки');return;}
+  const json=JSON.stringify(entry,null,2);
+  const fileName=`training-${completedFileDate(entry.completed_at)}.json`;
+  try{
+    const file=new File([json],fileName,{type:'application/json'});
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      await navigator.share({title:`Тренировка Сергея — ${entry.name||''}`,text:coachShareText(entry),files:[file]});
+      return;
+    }
+    if(navigator.share){await navigator.share({title:`Тренировка Сергея — ${entry.name||''}`,text:coachShareText(entry)});return;}
+  }catch(e){if(e?.name==='AbortError')return;}
+  try{await navigator.clipboard.writeText(json);showToast('JSON скопирован. Вставь его в чат «Тренер».');}
+  catch{downloadJson(entry,fileName);showToast('Сохранён JSON — отправь его в чат «Тренер».');}
+}
+async function pastePlanFromClipboard(){
+  let text='';
+  try{text=await navigator.clipboard.readText();}
+  catch{text=window.prompt('Вставь JSON плана тренировки')||'';}
+  if(!text.trim()){showToast('В буфере нет плана');return;}
+  try{const p=normalizePlan(JSON.parse(text));state.plan=p;saveState();renderHome();showToast(`План загружен: ${p.name}`);}
+  catch(e){showToast(`Не удалось загрузить план: ${e.message}`);}
+}
+function syncConfigured(){return !!(state.settings?.syncEndpoint && state.settings?.syncApiKey);}
+function pendingSyncCount(){return (state.history||[]).filter(x=>x.sync_status==='pending').length;}
+function renderSyncBadge(){
+  const b=$('syncBadge'); if(!b)return;
+  if(!syncConfigured()){b.textContent='Локально';return;}
+  const n=pendingSyncCount();
+  if(n){b.textContent=`Sync · ${n} ждёт`;return;}
+  b.textContent=state.settings?.lastSyncError?'Sync · ошибка':'Sync · готов';
+}
+function endpointUrl(action){
+  const base=String(state.settings?.syncEndpoint||'').trim();
+  if(!base)return '';
+  const u=new URL(base); u.searchParams.set('action',action); u.searchParams.set('key',state.settings.syncApiKey||''); u.searchParams.set('user',state.settings.userName||'Сергей'); return u.toString();
+}
+async function parseJsonResponse(r){const text=await r.text(); try{return JSON.parse(text);}catch{throw new Error(text.slice(0,160)||'Некорректный ответ сервера');}}
+async function checkSyncConnection(){
+  const status=$('connectionTestStatus');
+  if(status){status.textContent='Проверяю связь…';status.className='sync-test-status';}
+  if(!syncConfigured()){if(status){status.textContent='Нет настроек синхронизации';status.className='sync-test-status err';}showToast('Sync не настроен');return false;}
+  if(!navigator.onLine){if(status){status.textContent='Телефон сейчас офлайн';status.className='sync-test-status err';}showToast('Нет интернета');return false;}
+  try{
+    const r=await fetch(endpointUrl('ping'),{method:'GET',cache:'no-store'}); if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const data=await parseJsonResponse(r); if(!data.ok)throw new Error(data.error||'Сервер не подтвердил связь');
+    state.settings.lastSyncAt=nowIso();state.settings.lastSyncError='';saveState();renderSyncBadge();
+    if(status){status.textContent='Связь есть · Google Apps Script отвечает';status.className='sync-test-status ok';}
+    showToast('Связь с журналом работает'); return true;
+  }catch(e){
+    state.settings.lastSyncError=String(e.message||e);saveState();renderSyncBadge();
+    if(status){status.textContent=`Ошибка связи: ${String(e.message||e)}`;status.className='sync-test-status err';}
+    showToast('Связь не подтверждена'); return false;
+  }
+}
+async function fetchLatestPlan({silent=false}={}){
+  if(!syncConfigured()||!navigator.onLine||state.active)return false;
+  try{
+    const r=await fetch(endpointUrl('plan'),{method:'GET',cache:'no-store'}); if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const data=await parseJsonResponse(r); if(!data.ok)throw new Error(data.error||'Ошибка плана');
+    if(!data.plan){state.settings.lastSyncError='';state.settings.lastSyncAt=nowIso();saveState();renderSyncBadge();if(!silent)showToast('Нового плана на сервере нет');return false;}
+    const p=normalizePlan(data.plan);
+    const current=state.plan; const changed=!current || current.session_id!==p.session_id || Number(current.plan_version||0)!==Number(p.plan_version||0);
+    if(changed){state.plan=p;saveState();renderHome();if(!silent)showToast(`План обновлён: ${p.name}`);}
+    state.settings.lastSyncError='';state.settings.lastSyncAt=nowIso();saveState();renderSyncBadge();return changed;
+  }catch(e){state.settings.lastSyncError=String(e.message||e);saveState();renderSyncBadge();if(!silent)showToast('Не удалось получить план. Локальная версия сохранена.');return false;}
+}
+async function syncOneSession(entry,{silent=false}={}){
+  if(!syncConfigured()||!navigator.onLine||!entry||entry.sync_status==='synced')return false;
+  try{
+    const body={type:'completed_session',api_key:state.settings.syncApiKey,user:state.settings.userName||'Сергей',payload:entry};
+    const r=await fetch(state.settings.syncEndpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(body)}); if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const data=await parseJsonResponse(r); if(!data.ok)throw new Error(data.error||'Ошибка sync');
+    entry.sync_status='synced';entry.synced_at=nowIso();state.settings.lastSyncAt=entry.synced_at;state.settings.lastSyncError='';saveState();renderSyncBadge();if(!silent)showToast(data.duplicate?'Уже было в журнале · Sync OK':'Отправлено в журнал');return true;
+  }catch(e){entry.sync_status='pending';state.settings.lastSyncError=String(e.message||e);saveState();renderSyncBadge();if(!silent)showToast('Сохранено на телефоне. Sync повторится позже.');return false;}
+}
+async function syncPendingSessions({silent=false}={}){
+  if(!syncConfigured()||!navigator.onLine){if(!silent&&syncConfigured())showToast('Нет интернета');return;}
+  const pending=(state.history||[]).filter(x=>x.sync_status==='pending');
+  for(const entry of pending) await syncOneSession(entry,{silent:true});
+  renderSyncBadge(); if(!silent)showToast(pending.length?`Sync проверен · ожидало ${pending.length}`:'Нечего синхронизировать');
+}
+async function attemptSync(entry){
+  if(!entry)return;
+  if(!syncConfigured()){entry.sync_status='local';saveState();renderSyncBadge();return;}
+  entry.sync_status='pending';saveState();renderSyncBadge();
+  if(BACKGROUND_SYNC_ALLOWED){
+    await syncOneSession(entry,{silent:false});
+  } else {
+    showToast('Сохранено локально. Нажми «СИНХРОНИЗИРОВАТЬ С ЖУРНАЛОМ» на итоговом экране.');
+  }
+}
+
+function importPlanFile(file){
+  const reader=new FileReader();reader.onload=()=>{try{const p=normalizePlan(JSON.parse(reader.result));state.plan=p;saveState();renderHome();showToast(`План загружен: ${p.name}`);}catch(e){showToast(`Ошибка плана: ${e.message}`);}};reader.readAsText(file);
+}
+function importMotivation(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=1200, scale=Math.min(1,max/Math.max(img.width,img.height));
+      const canvas=document.createElement('canvas'); canvas.width=Math.max(1,Math.round(img.width*scale)); canvas.height=Math.max(1,Math.round(img.height*scale));
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      state.settings.motivationImage=canvas.toDataURL('image/jpeg',0.78);
+      try{saveState();renderHome();showToast('Мотивационная картинка сохранена на телефоне');}
+      catch{state.settings.motivationImage='';showToast('Картинка слишком большая для локального хранения');}
+    };
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+function resumeIfNeeded(){
+  if(!state.active)return false;
+  if(state.active.restEndsAt){showScreen('restScreen','Отдых');updateRest();restTicker=setInterval(updateRest,250);return true;}
+  if(state.active.setFinishedAt){
+    const step=currentStep(); resultDraft={reps:planTargetReps(step),effort:0,painText:'',weight:Number(step.planned_weight||0)};
+    $('resultExerciseName').textContent=step.exercise_name; $('repsValue').textContent=resultDraft.reps;
+    $('plannedWeightValue').textContent=Number(step.planned_weight||0); $('weightInput').value=String(resultDraft.weight);
+    $('setDurationValue').textContent=fmt(secondsBetween(state.active.setStartedAt,state.active.setFinishedAt));
+    $('responseDelayValue').textContent=fmt(secondsBetween(state.active.setFinishedAt,nowIso()));
+    document.querySelectorAll('.effort-btn').forEach(b=>b.classList.toggle('selected',b.dataset.effort==='0'));
+    $('painBox').classList.add('hidden'); $('painText').value='';
+    showScreen('resultScreen','Результат'); startResponseDelayTicker(); return true;
+  }
+  renderWorkout();showScreen('workoutScreen','Тренировка');
+  if(state.active.setStartedAt){clearInterval(setTicker);tickSet();setTicker=setInterval(tickSet,250);}return true;
+}
+
+function bind(){
+  $('primaryStartBtn').onclick=renderPreview;$('backHomeFromPreview').onclick=()=>{renderHome();showScreen('homeScreen','Сегодня');};$('beginSessionBtn').onclick=startSession;
+  $('startSetBtn').onclick=startSet;$('finishSetBtn').onclick=finishSet;
+  $('repsMinus').onclick=()=>{$('repsValue').textContent=resultDraft.reps=Math.max(0,resultDraft.reps-1);};
+  $('repsPlus').onclick=()=>{$('repsValue').textContent=++resultDraft.reps;};
+  $('weightInput').oninput=e=>{const v=Number(String(e.target.value).replace(',','.')); resultDraft.weight=Number.isFinite(v)&&v>=0?v:0;};
+  $('weightMinus').onclick=()=>{resultDraft.weight=Math.max(0,Math.round((Number(resultDraft.weight||0)-0.5)*2)/2);$('weightInput').value=String(resultDraft.weight);};
+  $('weightPlus').onclick=()=>{resultDraft.weight=Math.round((Number(resultDraft.weight||0)+0.5)*2)/2;$('weightInput').value=String(resultDraft.weight);};
+  $('resetWeightBtn').onclick=()=>{const step=currentStep();resultDraft.weight=Number(step?.planned_weight||0);$('weightInput').value=String(resultDraft.weight);};
+  document.querySelectorAll('.effort-btn').forEach(b=>b.onclick=()=>{resultDraft.effort=Number(b.dataset.effort);document.querySelectorAll('.effort-btn').forEach(x=>x.classList.toggle('selected',x===b));});
+  $('painToggle').onclick=()=>$('painBox').classList.toggle('hidden');$('painText').oninput=e=>resultDraft.painText=e.target.value;
+  $('confirmResultBtn').onclick=confirmResult;$('nextSetBtn').onclick=leaveRestAndPrepare;$('skipRestBtn').onclick=leaveRestAndPrepare;
+  $('finishSessionBtn').onclick=()=>{renderHome();showScreen('homeScreen','Сегодня');};
+  $('stopSessionBtn').onclick=openStopDialog;
+  $('cancelStopBtn').onclick=closeStopDialog;
+  $('confirmStopBtn').onclick=confirmAbortSession;
+  $('stopDialog').onclick=e=>{if(e.target===$('stopDialog'))closeStopDialog();};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('stopDialog').classList.contains('hidden'))closeStopDialog();});
+  $('refreshPlanBtn').onclick=()=>fetchLatestPlan({silent:false});
+  $('syncNowBtn').onclick=async()=>{await syncPendingSessions({silent:false});if(BACKGROUND_SYNC_ALLOWED)await fetchLatestPlan({silent:true});};
+  $('pastePlanBtn').onclick=pastePlanFromClipboard;
+  $('importPlanBtn').onclick=()=>$('planInput').click();$('planInput').onchange=e=>{if(e.target.files[0])importPlanFile(e.target.files[0]);e.target.value='';};
+  $('chooseMotivationBtn').onclick=()=>$('motivationInput').click();$('motivationInput').onchange=e=>{if(e.target.files[0])importMotivation(e.target.files[0]);e.target.value='';};
+  $('exportLastBtn').onclick=()=>{const h=state.history.at(-1);h?downloadJson(h,`training-${completedFileDate(h.completed_at)}.json`):showToast('Истории пока нет');};
+  $('exportAllBtn').onclick=()=>downloadJson(state.history,`training-history-${dateKey()}.json`);
+  $('settingsBtn').onclick=()=>{$('syncEndpointInput').value=state.settings.syncEndpoint||'';$('syncApiKeyInput').value=state.settings.syncApiKey||'';$('userNameInput').value=state.settings.userName||'Сергей';showScreen('settingsScreen','Настройки');};
+  $('testConnectionBtn').onclick=checkSyncConnection;
+  $('saveSettingsBtn').onclick=async()=>{state.settings.syncEndpoint=$('syncEndpointInput').value.trim();state.settings.syncApiKey=$('syncApiKeyInput').value.trim();state.settings.userName=$('userNameInput').value.trim()||'Сергей';state.settings.lastSyncError='';saveState();renderHome();showScreen('homeScreen','Сегодня');showToast('Настройки сохранены');if(syncConfigured()&&BACKGROUND_SYNC_ALLOWED){await syncPendingSessions({silent:true});await fetchLatestPlan({silent:false});}};
+  $('backHomeFromSettings').onclick=()=>{renderHome();showScreen('homeScreen','Сегодня');};
+  $('morning20Btn').onclick=()=>showToast('Тренер ещё не назначил шаблон «Утренняя 20 мин»');
+  $('emergency10Btn').onclick=()=>showToast('Тренер ещё не назначил шаблон «Аварийные 10 мин»');
+  $('installBtn').onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').classList.add('hidden');};
+}
+
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').classList.remove('hidden');});
+window.addEventListener('appinstalled',()=>showToast('Приложение установлено'));
+window.addEventListener('online',async()=>{showToast('Интернет восстановлен');if(BACKGROUND_SYNC_ALLOWED){await syncPendingSessions({silent:true});await fetchLatestPlan({silent:true});}});
+window.addEventListener('offline',()=>showToast('Офлайн: тренировка продолжит работать'));
+
+(async function init(){
+  bind();
+  if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('./sw.js');}catch(e){console.warn('SW registration failed',e);}}
+  await loadSamplePlanIfNeeded();renderHome();
+  if(!resumeIfNeeded())showScreen('homeScreen','Сегодня');
+  if(!BACKGROUND_SYNC_ALLOWED && syncConfigured()) setTimeout(()=>showToast('Локальный тест: фоновые сетевые запросы отключены'),350);
+  if(BACKGROUND_SYNC_ALLOWED && syncConfigured() && navigator.onLine){await syncPendingSessions({silent:true});await fetchLatestPlan({silent:true});}
+})();
+
+</script>
+</body>
+</html>

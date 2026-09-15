@@ -1,0 +1,14 @@
+{
+  "name": "Тренер Сергея",
+  "short_name": "Тренер",
+  "description": "Один шаг тренировки, таймеры, журнал и офлайн-режим.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090d14",
+  "theme_color": "#111827",
+  "lang": "ru",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
