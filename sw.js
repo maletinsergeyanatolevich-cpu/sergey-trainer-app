@@ -1,4 +1,4 @@
-const CACHE = 'sergey-trainer-v0.2.4';
+const CACHE = 'sergey-trainer-v0.2.5';
 
 const ASSETS = [
   './',
