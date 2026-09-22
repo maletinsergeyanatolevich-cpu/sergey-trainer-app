@@ -1,10 +1,14 @@
-const CACHE = 'sergey-trainer-v0.2.6';
+const CACHE = 'sergey-trainer-v0.2.7';
 
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon.svg'
+  './icon.svg',
+  './exercise-visuals/plank__01_start.svg',
+  './exercise-visuals/plank__02_finish.svg',
+  './exercise-visuals/pushup__01_start.svg',
+  './exercise-visuals/pushup__02_finish.svg'
 ];
 
 self.addEventListener('install', event => {
