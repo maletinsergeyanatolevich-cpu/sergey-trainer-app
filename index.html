@@ -42,20 +42,6 @@ body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, 
 .timed-result span{display:block;color:var(--muted);font-size:11px;margin-bottom:4px;}
 .timed-result strong{font-size:25px;font-variant-numeric:tabular-nums;}
 @media (orientation:landscape){.exercise-visual{min-height:130px;}}
-body.force-portrait{overflow:hidden;}
-body.force-portrait .app-shell{
-  position:fixed;left:50%;top:50%;margin:0;max-width:none;
-  width:100vh;height:100vw;min-height:0;overflow-y:auto;overflow-x:hidden;
-  transform-origin:center center;
-}
-body.force-portrait.rotate-left .app-shell{transform:translate(-50%,-50%) rotate(-90deg);}
-body.force-portrait.rotate-right .app-shell{transform:translate(-50%,-50%) rotate(90deg);}
-body.force-portrait .launch-splash{
-  position:fixed;left:50%;top:50%;right:auto;bottom:auto;
-  width:100vh;height:100vw;inset:auto;transform-origin:center center;
-}
-body.force-portrait.rotate-left .launch-splash{transform:translate(-50%,-50%) rotate(-90deg);}
-body.force-portrait.rotate-right .launch-splash{transform:translate(-50%,-50%) rotate(90deg);}
 button, input, textarea { font: inherit; }
 button { touch-action: manipulation; }
 .app-shell { width: min(100%, 620px); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
@@ -195,7 +181,7 @@ h3 { font-size: 18px; margin-bottom: 0; }
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow">ТРЕНЕР · v0.2.6 HTTPS</div>
+        <div class="eyebrow">ТРЕНЕР · v0.2.7 HTTPS</div>
         <h1 id="screenTitle">Сегодня</h1>
       </div>
       <div class="top-actions">
@@ -415,11 +401,24 @@ const STORAGE_KEY = 'sergey_trainer_v01';
 const PERSONAL_SYNC_ENDPOINT = 'https://script.google.com/macros/s/AKfycbw0vsdO_2TrRN1uEBM8_MaKliVMu_K6igHjmIhCYeF9NEUlEeaZWfuFDx8dhsK5HheuVw/exec';
 const PERSONAL_SYNC_API_KEY = '';
 const BACKGROUND_SYNC_ALLOWED = !window.__MANUAL_SYNC_ONLY__ && ['http:','https:'].includes(window.location.protocol);
+const EXERCISE_VISUAL_LIBRARY = {
+  plank:{start:'./exercise-visuals/plank__01_start.svg',finish:'./exercise-visuals/plank__02_finish.svg'},
+  elbow_plank_control:{start:'./exercise-visuals/plank__01_start.svg',finish:'./exercise-visuals/plank__02_finish.svg'},
+  pushup:{start:'./exercise-visuals/pushup__01_start.svg',finish:'./exercise-visuals/pushup__02_finish.svg'},
+  pushup_floor:{start:'./exercise-visuals/pushup__01_start.svg',finish:'./exercise-visuals/pushup__02_finish.svg'}
+};
+const MOTIVATION_CACHE_NAME='trainer-private-motivation-v1';
+const MOTIVATION_POOL_TARGET=5;
+const MOTIVATION_POOL_MAX=7;
 const DEFAULT_STATE = {
   plan: null,
   history: [],
   active: null,
-  settings: { userName: 'Сергей', syncEndpoint: PERSONAL_SYNC_ENDPOINT, syncApiKey: '', motivationImage: '', lastSyncAt: null, lastSyncError: '' },
+  settings: {
+    userName: 'Сергей', syncEndpoint: PERSONAL_SYNC_ENDPOINT, syncApiKey: '',
+    motivationImage: '', motivationPoolIds: [], motivationDay: null, motivationLastId: '',
+    lastSyncAt: null, lastSyncError: ''
+  },
   adherence: { promised: [], completed: [] }
 };
 
@@ -471,8 +470,9 @@ function normalizePlan(plan) {
     e.support_muscles = Array.isArray(e.support_muscles) ? e.support_muscles : [];
     e.goal_links = Array.isArray(e.goal_links) ? e.goal_links : [];
     e.coach_rationale ||= '';
-    e.visual_start = String(e.visual_start || e.visuals?.start || '');
-    e.visual_finish = String(e.visual_finish || e.visual_phase || e.visuals?.finish || e.visuals?.phase || '');
+    const builtInVisual=EXERCISE_VISUAL_LIBRARY[e.exercise_id]||null;
+    e.visual_start = String(e.visual_start || e.visuals?.start || builtInVisual?.start || '');
+    e.visual_finish = String(e.visual_finish || e.visual_phase || e.visuals?.finish || e.visuals?.phase || builtInVisual?.finish || '');
     if(!Array.isArray(e.sets)||!e.sets.length) throw new Error(`Нет подходов: ${e.name}`);
     e.sets.forEach((s,si)=>{
       s.set_number ||= si+1;
@@ -554,25 +554,69 @@ function promiseRate() {
   const n=promised.filter(x=>done.has(x)).length;
   return `${Math.round(n/promised.length*100)}%`;
 }
-let bundledMotivationFiles = null;
-async function loadBundledMotivation(){
-  if(state.settings?.motivationImage) return;
+function motivationCacheKey(id){
+  return new URL('./__private_motivation__/'+encodeURIComponent(id),location.href).href;
+}
+function b64ToBlob(base64,mime='image/jpeg'){
+  const bin=atob(base64), bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return new Blob([bytes],{type:mime});
+}
+async function cacheMotivationImage(item){
+  if(!item?.image_id||!item?.data_base64||!('caches' in window))return false;
+  const cache=await caches.open(MOTIVATION_CACHE_NAME);
+  await cache.put(motivationCacheKey(item.image_id),new Response(b64ToBlob(item.data_base64,item.mime_type||'image/jpeg'),{headers:{'Content-Type':item.mime_type||'image/jpeg'}}));
+  const ids=Array.isArray(state.settings.motivationPoolIds)?state.settings.motivationPoolIds:[];
+  state.settings.motivationPoolIds=[item.image_id,...ids.filter(x=>x!==item.image_id)].slice(0,MOTIVATION_POOL_MAX);
+  saveState();return true;
+}
+async function cachedMotivationUrl(id){
+  if(!id||!('caches' in window))return '';
+  const cache=await caches.open(MOTIVATION_CACHE_NAME),res=await cache.match(motivationCacheKey(id));
+  if(!res)return '';
+  return URL.createObjectURL(await res.blob());
+}
+async function chooseDailyMotivationUrl(){
+  if(state.settings?.motivationImage)return state.settings.motivationImage;
+  const ids=Array.isArray(state.settings?.motivationPoolIds)?state.settings.motivationPoolIds:[];
+  if(!ids.length)return '';
+  const day=dateKey();
+  let id=state.settings?.motivationDay?.date===day?state.settings.motivationDay.id:'';
+  if(!id||!ids.includes(id)){
+    id=ids.find(x=>x!==state.settings?.motivationLastId)||ids[0];
+    state.settings.motivationDay={date:day,id};
+    state.settings.motivationLastId=id;
+    saveState();
+  }
+  return cachedMotivationUrl(id);
+}
+async function refillMotivationPool({silent=true}={}){
+  if(!syncConfigured()||!navigator.onLine||!('caches' in window))return false;
+  const ids=Array.isArray(state.settings?.motivationPoolIds)?state.settings.motivationPoolIds:[];
+  if(ids.length>=MOTIVATION_POOL_TARGET)return true;
   try{
-    if(!bundledMotivationFiles){
-      const r=await fetch('./motivation/index.json');
-      if(!r.ok) throw new Error('motivation index');
-      const data=await r.json();
-      bundledMotivationFiles=Array.isArray(data.files)?data.files:[];
-    }
-    if(!bundledMotivationFiles.length) return;
-    const key=dateKey();
-    let hash=0; for(const ch of key) hash=((hash*31)+ch.charCodeAt(0))>>>0;
-    const file=bundledMotivationFiles[hash%bundledMotivationFiles.length];
-    const img=$('motivationImage');
-    img.onload=()=>{$('motivationFallback').classList.add('hidden');img.classList.remove('hidden');};
-    img.onerror=()=>{img.classList.add('hidden');$('motivationFallback').classList.remove('hidden');};
-    img.src=`./motivation/${encodeURIComponent(file)}`;
-  }catch{/* single HTML / offline without bundle keeps fallback */}
+    const u=new URL(endpointUrl('motivation'));
+    u.searchParams.set('count',String(Math.min(MOTIVATION_POOL_MAX,Math.max(1,MOTIVATION_POOL_TARGET-ids.length))));
+    u.searchParams.set('exclude',ids.join(','));
+    const r=await fetch(u.toString(),{method:'GET',cache:'no-store'});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const data=await parseJsonResponse(r);
+    if(!data.ok||!Array.isArray(data.images))throw new Error(data.error||'motivation_unavailable');
+    for(const item of data.images)await cacheMotivationImage(item);
+    renderHomeMotivation();
+    return true;
+  }catch(e){
+    if(!silent)showToast('Мотивационные картинки пока недоступны');
+    return false;
+  }
+}
+async function renderHomeMotivation(){
+  const img=$('motivationImage'),fallback=$('motivationFallback'); if(!img||!fallback)return;
+  const url=await chooseDailyMotivationUrl();
+  if(!url){img.classList.add('hidden');fallback.classList.remove('hidden');return;}
+  img.onload=()=>{fallback.classList.add('hidden');img.classList.remove('hidden');};
+  img.onerror=()=>{img.classList.add('hidden');fallback.classList.remove('hidden');};
+  img.src=url;
 }
 
 function renderHome() {
@@ -584,9 +628,7 @@ function renderHome() {
   $('achievementList').innerHTML='';
   const ach=p?.motivation?.achievements||[];
   ach.slice(0,3).forEach(a=>{const d=document.createElement('div');d.className='achievement';d.textContent=a;$('achievementList').appendChild(d);});
-  const img=state.settings?.motivationImage;
-  $('motivationImage').classList.toggle('hidden',!img); $('motivationFallback').classList.toggle('hidden',!!img);
-  if(img) $('motivationImage').src=img; else loadBundledMotivation();
+  renderHomeMotivation();
   renderSyncBadge();
 }
 function renderPreview() {
@@ -752,7 +794,7 @@ function confirmAbortSession(){
   const entry={...clone(a),completed_date:completedDate};
   state.history.push(entry);
   state.active=null;
-  saveState();renderSummary(entry);showScreen('summaryScreen','Остановлено');attemptSync(entry);
+  saveState();renderSummary(entry);showScreen('summaryScreen','Остановлено');attemptSync(entry);setTimeout(()=>refillMotivationPool({silent:true}),600);
 }
 
 function finalizeSession(){
@@ -760,7 +802,7 @@ function finalizeSession(){
   if(a.previousResultIndex!==null){const last=a.results[a.previousResultIndex];if(last&&!last.rest_actual_sec)last.rest_actual_sec=0;}
   const completedDate=dateKey();const entry={...clone(a),completed_date:completedDate};state.history.push(entry);
   state.adherence ||= {promised:[],completed:[]};if(!state.adherence.completed.includes(completedDate))state.adherence.completed.push(completedDate);
-  state.active=null;saveState();renderSummary(entry);showScreen('summaryScreen','Готово');attemptSync(entry);
+  state.active=null;saveState();renderSummary(entry);showScreen('summaryScreen','Готово');attemptSync(entry);setTimeout(()=>refillMotivationPool({silent:true}),600);
 }
 function renderSummary(entry){
   const total=entry.results.length,hard=entry.results.filter(r=>r.load_level_0_2===2).length,pain=entry.results.filter(r=>r.pain_flag).length;
@@ -1041,51 +1083,33 @@ function bind(){
   $('installBtn').onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').classList.add('hidden');};
 }
 
-function startLaunchSplash(){
+async function startLaunchSplash(){
   const splash=$('launchSplash'); if(!splash)return;
   const img=$('launchSplashImage'),fallback=$('launchSplashFallback');
-  const local=String(state.settings?.motivationImage||'');
-  if(local){
-    img.onload=()=>{img.classList.remove('hidden');fallback.classList.add('hidden');};
-    img.onerror=()=>{img.classList.add('hidden');fallback.classList.remove('hidden');};
-    img.src=local;
-  }
-  setTimeout(()=>splash.classList.add('is-hidden'),5000);
-  setTimeout(()=>splash.remove(),5350);
-}
-function applyPortraitFallback(){
-  const landscape=window.innerWidth>window.innerHeight;
-  document.body.classList.toggle('force-portrait',landscape);
-  document.body.classList.remove('rotate-left','rotate-right');
-  if(!landscape)return;
-  const raw=Number(screen.orientation?.angle ?? window.orientation ?? 90);
-  const angle=((raw%360)+360)%360;
-  document.body.classList.add(angle===270?'rotate-right':'rotate-left');
-}
-async function lockPortrait(){
-  applyPortraitFallback();
-  try{
-    if(screen.orientation?.lock) await screen.orientation.lock('portrait-primary');
-  }catch{/* CSS fallback keeps portrait geometry when platform ignores orientation lock */}
+  const url=await chooseDailyMotivationUrl();
+  if(!url){splash.remove();return;}
+  img.onload=()=>{
+    img.classList.remove('hidden');fallback.classList.add('hidden');
+    setTimeout(()=>splash.classList.add('is-hidden'),5000);
+    setTimeout(()=>splash.remove(),5350);
+  };
+  img.onerror=()=>splash.remove();
+  img.src=url;
 }
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').classList.remove('hidden');});
-window.addEventListener('appinstalled',()=>{lockPortrait();showToast('Приложение установлено');});
-window.addEventListener('online',async()=>{showToast('Интернет восстановлен');if(BACKGROUND_SYNC_ALLOWED){await syncPendingSessions({silent:true});await fetchLatestPlan({silent:true});}});
+window.addEventListener('appinstalled',()=>showToast('Приложение установлено'));
+window.addEventListener('online',async()=>{showToast('Интернет восстановлен');if(BACKGROUND_SYNC_ALLOWED){await syncPendingSessions({silent:true});await fetchLatestPlan({silent:true});await refillMotivationPool({silent:true});}});
 window.addEventListener('offline',()=>showToast('Офлайн: тренировка продолжит работать'));
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)lockPortrait();});
-window.addEventListener('resize',applyPortraitFallback);
-window.addEventListener('orientationchange',()=>setTimeout(applyPortraitFallback,80));
 
 (async function init(){
   startLaunchSplash();
   bind();
-  lockPortrait();
   if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('./sw.js');}catch(e){console.warn('SW registration failed',e);}}
   await loadSamplePlanIfNeeded();renderHome();
   if(!resumeIfNeeded())showScreen('homeScreen','Сегодня');
   if(!BACKGROUND_SYNC_ALLOWED && syncConfigured()) setTimeout(()=>showToast('Локальный тест: фоновые сетевые запросы отключены'),350);
-  if(BACKGROUND_SYNC_ALLOWED && syncConfigured() && navigator.onLine){await syncPendingSessions({silent:true});await fetchLatestPlan({silent:true});}
+  if(BACKGROUND_SYNC_ALLOWED && syncConfigured() && navigator.onLine){await syncPendingSessions({silent:true});await fetchLatestPlan({silent:true});setTimeout(()=>refillMotivationPool({silent:true}),500);}
 })();
 
 </script>
