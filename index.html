@@ -25,6 +25,23 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #162033 0, #090d14 45%); }
+.launch-splash{position:fixed;inset:0;z-index:100;background:#090d14;display:grid;place-items:center;overflow:hidden;transition:opacity .22s ease,visibility .22s ease;}
+.launch-splash.is-hidden{opacity:0;visibility:hidden;pointer-events:none;}
+.launch-splash-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.launch-splash-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,14,.12),rgba(5,8,14,.62));}
+.launch-splash-fallback{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(155deg,#1b2b45,#090d14 68%);}
+.launch-splash-fallback svg{width:min(76vw,360px);height:auto;opacity:.92;}
+.launch-splash-caption{position:absolute;left:22px;right:22px;bottom:max(28px,env(safe-area-inset-bottom));text-align:center;font-size:13px;font-weight:800;letter-spacing:.14em;color:#e5f6ff;text-transform:uppercase;}
+.exercise-visuals{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0 10px;}
+.exercise-visual{position:relative;min-height:150px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:#0d131d;display:grid;place-items:center;}
+.exercise-visual img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.exercise-visual figcaption{position:absolute;left:7px;bottom:7px;margin:0;padding:5px 7px;border-radius:999px;background:rgba(9,13,20,.82);font-size:10px;font-weight:900;letter-spacing:.08em;}
+.exercise-visual-placeholder{padding:12px;color:var(--muted);font-size:11px;line-height:1.35;text-align:center;}
+.timed-result{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;}
+.timed-result > div{padding:12px;border:1px solid var(--border);border-radius:14px;background:#0f1621;}
+.timed-result span{display:block;color:var(--muted);font-size:11px;margin-bottom:4px;}
+.timed-result strong{font-size:25px;font-variant-numeric:tabular-nums;}
+@media (orientation:landscape){.app-shell{width:min(430px,100%);}.exercise-visual{min-height:130px;}}
 button, input, textarea { font: inherit; }
 button { touch-action: manipulation; }
 .app-shell { width: min(100%, 620px); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
@@ -155,10 +172,23 @@ h3 { font-size: 18px; margin-bottom: 0; }
   <title>Тренер Сергея</title>
 </head>
 <body>
+  <div id="launchSplash" class="launch-splash" aria-hidden="true">
+    <img id="launchSplashImage" class="launch-splash-media hidden" alt="" />
+    <div id="launchSplashFallback" class="launch-splash-fallback">
+      <svg viewBox="0 0 320 420" aria-hidden="true">
+        <defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7dd3fc"/><stop offset="1" stop-color="#86efac"/></linearGradient></defs>
+        <circle cx="160" cy="78" r="34" fill="url(#sg)"/>
+        <path d="M95 170c25-42 105-42 130 0l28 84-35 12-24-65v159h-38v-95h-12v95h-38V201l-24 65-35-12 28-84z" fill="url(#sg)" opacity=".92"/>
+        <path d="M55 385h210" stroke="#e5f6ff" stroke-width="8" stroke-linecap="round" opacity=".65"/>
+      </svg>
+    </div>
+    <div class="launch-splash-shade"></div>
+    <div class="launch-splash-caption">Тренировка начинается сейчас</div>
+  </div>
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow">ТРЕНЕР · v0.2.0 HTTPS</div>
+        <div class="eyebrow">ТРЕНЕР · v0.2.4 HTTPS</div>
         <h1 id="screenTitle">Сегодня</h1>
       </div>
       <div class="top-actions">
@@ -238,6 +268,18 @@ h3 { font-size: 18px; margin-bottom: 0; }
         <span id="stepCounter" class="label">ПОДХОД</span>
         <h2 id="exerciseName">—</h2>
         <div id="exercisePlan" class="plan-value">—</div>
+        <div id="exerciseVisuals" class="exercise-visuals">
+          <figure class="exercise-visual">
+            <img id="exerciseVisualStart" class="hidden" alt="Стартовая позиция" />
+            <div id="exerciseVisualStartPlaceholder" class="exercise-visual-placeholder">СТАРТ<br>визуал пока не загружен</div>
+            <figcaption>СТАРТ</figcaption>
+          </figure>
+          <figure class="exercise-visual">
+            <img id="exerciseVisualFinish" class="hidden" alt="Основная фаза упражнения" />
+            <div id="exerciseVisualFinishPlaceholder" class="exercise-visual-placeholder">ФАЗА<br>визуал пока не загружен</div>
+            <figcaption>ФАЗА</figcaption>
+          </figure>
+        </div>
         <p id="coachNote" class="muted"></p>
         <div id="setTimer" class="set-timer">00:00</div>
         <button id="startSetBtn" class="primary-btn giant" type="button">НАЧАТЬ ПОДХОД</button>
@@ -269,6 +311,11 @@ h3 { font-size: 18px; margin-bottom: 0; }
           </div>
           <button id="resetWeightBtn" class="weight-reset" type="button">ВЕРНУТЬ ВЕС ПО ПЛАНУ</button>
           <p class="micro-note">По умолчанию уже стоит вес тренера. Меняй только если фактически взял другой вес.</p>
+        </div>
+
+        <div id="timedResultBlock" class="timed-result hidden">
+          <div><span>Плановое время</span><strong id="plannedDurationValue">00:00</strong></div>
+          <div><span>Фактическое время</span><strong id="actualDurationValue">00:00</strong></div>
         </div>
 
         <div class="field-block">
@@ -417,12 +464,15 @@ function normalizePlan(plan) {
     e.support_muscles = Array.isArray(e.support_muscles) ? e.support_muscles : [];
     e.goal_links = Array.isArray(e.goal_links) ? e.goal_links : [];
     e.coach_rationale ||= '';
+    e.visual_start = String(e.visual_start || e.visuals?.start || '');
+    e.visual_finish = String(e.visual_finish || e.visual_phase || e.visuals?.finish || e.visuals?.phase || '');
     if(!Array.isArray(e.sets)||!e.sets.length) throw new Error(`Нет подходов: ${e.name}`);
     e.sets.forEach((s,si)=>{
       s.set_number ||= si+1;
       s.planned_reps_min ??= 0;
       s.planned_reps_max ??= s.planned_reps_min;
       s.planned_weight ??= 0;
+      s.planned_duration_sec ??= 0;
       s.planned_rest_sec ??= 90;
     });
   });
@@ -437,34 +487,41 @@ function flattenPlan(plan) {
     support_muscles:clone(exercise.support_muscles||[]),
     goal_links:clone(exercise.goal_links||[]),
     coach_rationale:exercise.coach_rationale||'',
+    visual_start:exercise.visual_start||'',
+    visual_finish:exercise.visual_finish||'',
     ...set
   })));
   return steps;
 }
 function planTargetReps(step) { return Number(step.planned_reps_max ?? step.planned_reps_min ?? 0); }
+function planTargetDuration(step) { return Math.max(0,Number(step.planned_duration_sec||0)); }
 function planLabel(step) {
   const min=Number(step.planned_reps_min||0), max=Number(step.planned_reps_max||min);
   const reps=min===max?`${max} повт.`:`${min}–${max} повт.`;
+  const duration=planTargetDuration(step)>0?` · ${fmt(planTargetDuration(step))}`:'';
   const weight=Number(step.planned_weight||0)>0?` · ${step.planned_weight} кг`:'';
-  return `${reps}${weight}`;
+  return `${reps}${duration}${weight}`;
 }
 
 function setPlanText(step) {
   const min=Number(step.planned_reps_min||0), max=Number(step.planned_reps_max||min);
   const reps=min===max?`${max} повт.`:`${min}–${max} повт.`;
+  const duration=planTargetDuration(step)>0?` · время ${fmt(planTargetDuration(step))}`:'';
   const weight=Number(step.planned_weight||0)>0?`${step.planned_weight} кг × `:'';
-  return `${weight}${reps}`;
+  return `${weight}${reps}${duration}`;
 }
 function setFactText(result) {
   if(!result) return 'не выполнен';
   const weight=Number(result.actual_weight||0)>0?`${result.actual_weight} кг × `:'';
-  return `${weight}${Number(result.actual_reps||0)} повт.`;
+  const duration=Number(result.planned_duration_sec||0)>0?` · факт ${fmt(result.actual_duration_sec ?? result.set_duration_sec ?? 0)}`:'';
+  return `${weight}${Number(result.actual_reps||0)} повт.${duration}`;
 }
 function resultStatus(step,result) {
   if(!result) return 'danger';
   if(result.pain_flag) return 'danger';
-  const reps=Number(result.actual_reps||0), min=Number(step.planned_reps_min||0), max=Number(step.planned_reps_max??min);
-  if(result.load_level_0_2===2 || reps<min) return 'warn';
+  const reps=Number(result.actual_reps||0), min=Number(step.planned_reps_min||0);
+  const plannedDuration=planTargetDuration(step), actualDuration=Number(result.actual_duration_sec ?? result.set_duration_sec ?? 0);
+  if(result.load_level_0_2===2 || reps<min || (plannedDuration>0 && actualDuration<plannedDuration)) return 'warn';
   return 'ok';
 }
 
@@ -531,8 +588,15 @@ function renderPreview() {
   $('exercisePreview').innerHTML='';
   p.exercises.forEach(e=>{
     const d=document.createElement('div');d.className='exercise-item';
-    const total=e.sets.length; const reps=[...new Set(e.sets.map(s=>planTargetReps(s)))].join('/');
-    d.innerHTML=`<strong>${escapeHtml(e.name)}</strong><small>${total} подх. · цель повт. ${escapeHtml(reps)}</small>${e.technique_note?`<p class="muted">${escapeHtml(e.technique_note)}</p>`:''}`;
+    const total=e.sets.length;
+    const reps=[...new Set(e.sets.map(s=>planTargetReps(s)))].join('/');
+    const durations=[...new Set(e.sets.map(s=>planTargetDuration(s)).filter(Boolean))].map(fmt).join('/');
+    const target=`${total} подх. · цель повт. ${escapeHtml(reps)}${durations?` · время ${escapeHtml(durations)}`:''}`;
+    const visuals=(e.visual_start||e.visual_finish)?`<div class="exercise-visuals">
+      <figure class="exercise-visual">${e.visual_start?`<img src="${escapeHtml(e.visual_start)}" alt="Старт: ${escapeHtml(e.name)}">`:`<div class="exercise-visual-placeholder">СТАРТ<br>визуал пока не загружен</div>`}<figcaption>СТАРТ</figcaption></figure>
+      <figure class="exercise-visual">${e.visual_finish?`<img src="${escapeHtml(e.visual_finish)}" alt="Фаза: ${escapeHtml(e.name)}">`:`<div class="exercise-visual-placeholder">ФАЗА<br>визуал пока не загружен</div>`}<figcaption>ФАЗА</figcaption></figure>
+    </div>`:'';
+    d.innerHTML=`<strong>${escapeHtml(e.name)}</strong><small>${target}</small>${visuals}${e.technique_note?`<p class="muted">${escapeHtml(e.technique_note)}</p>`:''}`;
     $('exercisePreview').appendChild(d);
   });
   showScreen('previewScreen','План');
@@ -558,22 +622,45 @@ function renderChecklist(){
   const a=state.active;if(!a)return;$('completedChecklist').innerHTML='';
   a.steps.forEach((_,i)=>{const d=document.createElement('div');d.className='check-dot '+(i<a.results.length?'done':i===a.stepIndex?'current':'');d.textContent=i<a.results.length?'✓':i+1;$('completedChecklist').appendChild(d);});
 }
+function setExerciseVisual(imgId,placeholderId,url){
+  const img=$(imgId),placeholder=$(placeholderId); if(!img||!placeholder)return;
+  img.onload=()=>{img.classList.remove('hidden');placeholder.classList.add('hidden');};
+  img.onerror=()=>{img.removeAttribute('src');img.classList.add('hidden');placeholder.classList.remove('hidden');};
+  if(String(url||'').trim()){img.classList.add('hidden');placeholder.classList.remove('hidden');img.src=String(url).trim();}
+  else{img.removeAttribute('src');img.classList.add('hidden');placeholder.classList.remove('hidden');}
+}
+function renderExerciseVisuals(step){
+  setExerciseVisual('exerciseVisualStart','exerciseVisualStartPlaceholder',step.visual_start);
+  setExerciseVisual('exerciseVisualFinish','exerciseVisualFinishPlaceholder',step.visual_finish);
+}
 function renderWorkout(){
   const a=state.active, step=currentStep(); if(!a||!step)return;
   $('stepCounter').textContent=`ПОДХОД ${a.stepIndex+1} ИЗ ${a.steps.length} · ${step.set_number}`;
   $('exerciseName').textContent=step.exercise_name; $('exercisePlan').textContent=planLabel(step); $('coachNote').textContent=step.technique_note||'';
+  renderExerciseVisuals(step);
   const progress=a.steps.length?Math.round(a.results.length/a.steps.length*100):0; $('progressBar').style.width=`${progress}%`;
   $('startSetBtn').classList.toggle('hidden',!!a.setStartedAt); $('finishSetBtn').classList.toggle('hidden',!a.setStartedAt);
-  $('setTimer').textContent='00:00'; renderChecklist();
+  const target=planTargetDuration(step);
+  $('startSetBtn').textContent=target>0?`НАЧАТЬ · ${fmt(target)}`:'НАЧАТЬ ПОДХОД';
+  $('finishSetBtn').textContent='ЗАКОНЧИЛ';
+  $('setTimer').textContent=target>0?`00:00 / ${fmt(target)}`:'00:00'; renderChecklist();
 }
-function tickSet(){const a=state.active;if(!a?.setStartedAt)return;$('setTimer').textContent=fmt(secondsBetween(a.setStartedAt,nowIso()));}
+function tickSet(){
+  const a=state.active,step=currentStep();if(!a?.setStartedAt||!step)return;
+  const elapsed=secondsBetween(a.setStartedAt,nowIso()),target=planTargetDuration(step);
+  $('setTimer').textContent=target>0?`${fmt(elapsed)} / ${fmt(target)}`:fmt(elapsed);
+  if(target>0 && elapsed>=target && !a.targetNotified){
+    a.targetNotified=true;saveState();$('finishSetBtn').textContent='ЦЕЛЬ ДОСТИГНУТА · ЗАКОНЧИЛ';
+    if(navigator.vibrate) navigator.vibrate([160,80,160]);
+  }
+}
 function startSet(){
   const a=state.active;if(!a)return;
   if(a.previousResultIndex!==null){
     const prev=a.results[a.previousResultIndex]; if(prev&&!prev.rest_actual_sec){prev.rest_actual_sec=secondsBetween(prev.finished_at,nowIso());}
     a.previousResultIndex=null;
   }
-  a.setStartedAt=nowIso(); a.setFinishedAt=null; a.resultOpenedAt=null; saveState(); renderWorkout();
+  a.setStartedAt=nowIso(); a.setFinishedAt=null; a.resultOpenedAt=null; a.targetNotified=false; saveState(); renderWorkout();
   clearInterval(setTicker);tickSet();setTicker=setInterval(tickSet,250);
 }
 function finishSet(){
@@ -581,7 +668,10 @@ function finishSet(){
   const step=currentStep(); resultDraft={reps:planTargetReps(step),effort:0,painText:'',weight:Number(step.planned_weight||0)};
   $('resultExerciseName').textContent=step.exercise_name; $('repsValue').textContent=resultDraft.reps;
   $('plannedWeightValue').textContent=Number(step.planned_weight||0); $('weightInput').value=String(resultDraft.weight);
-  $('setDurationValue').textContent=fmt(secondsBetween(a.setStartedAt,a.setFinishedAt)); $('responseDelayValue').textContent='00:00';
+  const actualDuration=secondsBetween(a.setStartedAt,a.setFinishedAt),plannedDuration=planTargetDuration(step);
+  $('setDurationValue').textContent=fmt(actualDuration); $('responseDelayValue').textContent='00:00';
+  $('timedResultBlock').classList.toggle('hidden',plannedDuration<=0);
+  $('plannedDurationValue').textContent=fmt(plannedDuration); $('actualDurationValue').textContent=fmt(actualDuration);
   document.querySelectorAll('.effort-btn').forEach(b=>b.classList.toggle('selected',b.dataset.effort==='0'));
   $('painBox').classList.add('hidden');$('painText').value='';showScreen('resultScreen','Результат');startResponseDelayTicker();
 }
@@ -592,6 +682,7 @@ function confirmResult(){
   const record={
     session_id:a.session_id,plan_version:a.plan_version,exercise_id:step.exercise_id,exercise_name:step.exercise_name,set_number:step.set_number,
     started_at:a.setStartedAt,finished_at:a.setFinishedAt,set_duration_sec:secondsBetween(a.setStartedAt,a.setFinishedAt),
+    planned_duration_sec:planTargetDuration(step),actual_duration_sec:secondsBetween(a.setStartedAt,a.setFinishedAt),
     actual_weight:Number(resultDraft.weight||0),actual_reps:Number(resultDraft.reps),load_level_0_2:Number(resultDraft.effort),
     pain_flag:Boolean(resultDraft.painText.trim()),pain_text:resultDraft.painText.trim(),response_delay_sec:secondsBetween(a.setFinishedAt,confirmedAt),
     rest_planned_sec:Number(step.planned_rest_sec||0),rest_actual_sec:null,completion_status:'completed',user_note:'',sync_status:'local'
@@ -670,6 +761,8 @@ function renderSummary(entry){
   const plannedSteps=entry.steps||[];
   const plannedReps=plannedSteps.reduce((sum,x)=>sum+planTargetReps(x),0);
   const actualReps=entry.results.reduce((sum,x)=>sum+Number(x.actual_reps||0),0);
+  const plannedTimedSeconds=plannedSteps.reduce((sum,x)=>sum+planTargetDuration(x),0);
+  const actualTimedSeconds=entry.results.reduce((sum,x)=>sum+(Number(x.planned_duration_sec||0)>0?Number(x.actual_duration_sec ?? x.set_duration_sec ?? 0):0),0);
   const setCompletion=plannedSteps.length?Math.round(total/plannedSteps.length*100):0;
   const repCompletion=plannedReps?Math.round(actualReps/plannedReps*100):0;
   const stopped=entry.status!=='completed';
@@ -680,7 +773,8 @@ function renderSummary(entry){
     <div class="summary-stat"><span>Выполнено</span><strong>${setCompletion}%</strong></div>
     <div class="summary-stat"><span>Повторы</span><strong>${actualReps}/${plannedReps}</strong></div>
     <div class="summary-stat"><span>Повторы к плану</span><strong>${repCompletion}%</strong></div>
-    <div class="summary-stat"><span>Время</span><strong>${fmt(duration)}</strong></div>
+    <div class="summary-stat"><span>Время тренировки</span><strong>${fmt(duration)}</strong></div>
+    ${plannedTimedSeconds>0?`<div class="summary-stat"><span>Время упражнений</span><strong>${fmt(actualTimedSeconds)}/${fmt(plannedTimedSeconds)}</strong></div>`:''}
     <div class="summary-stat"><span>На пределе</span><strong>${hard}</strong></div>
     <div class="summary-stat"><span>Боль/тянет</span><strong>${pain}</strong></div>`;
   const box=$('summaryMessage');
@@ -736,9 +830,11 @@ function renderPlanFact(entry){
     const results=entry.results.filter(r=>r.exercise_id===g.exercise_id);
     const planned=g.steps.reduce((sum,x)=>sum+planTargetReps(x),0);
     const actual=results.reduce((sum,x)=>sum+Number(x.actual_reps||0),0);
+    const plannedTime=g.steps.reduce((sum,x)=>sum+planTargetDuration(x),0);
+    const actualTime=results.reduce((sum,x)=>sum+(Number(x.planned_duration_sec||0)>0?Number(x.actual_duration_sec ?? x.set_duration_sec ?? 0):0),0);
     const head=document.createElement('div');
     head.className='pf-head';
-    head.innerHTML=`<strong>${escapeHtml(g.name)}</strong><small>План: ${g.steps.length} подх. · ${planned} повт. &nbsp; Факт: ${results.length} подх. · ${actual} повт.</small>`;
+    head.innerHTML=`<strong>${escapeHtml(g.name)}</strong><small>План: ${g.steps.length} подх. · ${planned} повт.${plannedTime?` · ${fmt(plannedTime)}`:''} &nbsp; Факт: ${results.length} подх. · ${actual} повт.${plannedTime?` · ${fmt(actualTime)}`:''}</small>`;
     card.appendChild(head);
     g.steps.forEach(step=>{
       const r=results.find(x=>Number(x.set_number)===Number(step.set_number));
@@ -891,7 +987,10 @@ function resumeIfNeeded(){
     const step=currentStep(); resultDraft={reps:planTargetReps(step),effort:0,painText:'',weight:Number(step.planned_weight||0)};
     $('resultExerciseName').textContent=step.exercise_name; $('repsValue').textContent=resultDraft.reps;
     $('plannedWeightValue').textContent=Number(step.planned_weight||0); $('weightInput').value=String(resultDraft.weight);
-    $('setDurationValue').textContent=fmt(secondsBetween(state.active.setStartedAt,state.active.setFinishedAt));
+    const actualDuration=secondsBetween(state.active.setStartedAt,state.active.setFinishedAt),plannedDuration=planTargetDuration(step);
+    $('setDurationValue').textContent=fmt(actualDuration);
+    $('timedResultBlock').classList.toggle('hidden',plannedDuration<=0);
+    $('plannedDurationValue').textContent=fmt(plannedDuration); $('actualDurationValue').textContent=fmt(actualDuration);
     $('responseDelayValue').textContent=fmt(secondsBetween(state.active.setFinishedAt,nowIso()));
     document.querySelectorAll('.effort-btn').forEach(b=>b.classList.toggle('selected',b.dataset.effort==='0'));
     $('painBox').classList.add('hidden'); $('painText').value='';
@@ -935,13 +1034,34 @@ function bind(){
   $('installBtn').onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').classList.add('hidden');};
 }
 
+function startLaunchSplash(){
+  const splash=$('launchSplash'); if(!splash)return;
+  const img=$('launchSplashImage'),fallback=$('launchSplashFallback');
+  const local=String(state.settings?.motivationImage||'');
+  if(local){
+    img.onload=()=>{img.classList.remove('hidden');fallback.classList.add('hidden');};
+    img.onerror=()=>{img.classList.add('hidden');fallback.classList.remove('hidden');};
+    img.src=local;
+  }
+  setTimeout(()=>splash.classList.add('is-hidden'),2000);
+  setTimeout(()=>splash.remove(),2350);
+}
+async function lockPortrait(){
+  try{
+    if(screen.orientation?.lock) await screen.orientation.lock('portrait-primary');
+  }catch{/* manifest orientation remains primary enforcement for installed PWA */}
+}
+
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').classList.remove('hidden');});
-window.addEventListener('appinstalled',()=>showToast('Приложение установлено'));
+window.addEventListener('appinstalled',()=>{lockPortrait();showToast('Приложение установлено');});
 window.addEventListener('online',async()=>{showToast('Интернет восстановлен');if(BACKGROUND_SYNC_ALLOWED){await syncPendingSessions({silent:true});await fetchLatestPlan({silent:true});}});
 window.addEventListener('offline',()=>showToast('Офлайн: тренировка продолжит работать'));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)lockPortrait();});
 
 (async function init(){
+  startLaunchSplash();
   bind();
+  lockPortrait();
   if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('./sw.js');}catch(e){console.warn('SW registration failed',e);}}
   await loadSamplePlanIfNeeded();renderHome();
   if(!resumeIfNeeded())showScreen('homeScreen','Сегодня');
