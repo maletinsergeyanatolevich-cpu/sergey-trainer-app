@@ -41,7 +41,21 @@ body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, 
 .timed-result > div{padding:12px;border:1px solid var(--border);border-radius:14px;background:#0f1621;}
 .timed-result span{display:block;color:var(--muted);font-size:11px;margin-bottom:4px;}
 .timed-result strong{font-size:25px;font-variant-numeric:tabular-nums;}
-@media (orientation:landscape){.app-shell{width:min(430px,100%);}.exercise-visual{min-height:130px;}}
+@media (orientation:landscape){.exercise-visual{min-height:130px;}}
+body.force-portrait{overflow:hidden;}
+body.force-portrait .app-shell{
+  position:fixed;left:50%;top:50%;margin:0;max-width:none;
+  width:100vh;height:100vw;min-height:0;overflow-y:auto;overflow-x:hidden;
+  transform-origin:center center;
+}
+body.force-portrait.rotate-left .app-shell{transform:translate(-50%,-50%) rotate(-90deg);}
+body.force-portrait.rotate-right .app-shell{transform:translate(-50%,-50%) rotate(90deg);}
+body.force-portrait .launch-splash{
+  position:fixed;left:50%;top:50%;right:auto;bottom:auto;
+  width:100vh;height:100vw;inset:auto;transform-origin:center center;
+}
+body.force-portrait.rotate-left .launch-splash{transform:translate(-50%,-50%) rotate(-90deg);}
+body.force-portrait.rotate-right .launch-splash{transform:translate(-50%,-50%) rotate(90deg);}
 button, input, textarea { font: inherit; }
 button { touch-action: manipulation; }
 .app-shell { width: min(100%, 620px); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
@@ -174,21 +188,14 @@ h3 { font-size: 18px; margin-bottom: 0; }
 <body>
   <div id="launchSplash" class="launch-splash" aria-hidden="true">
     <img id="launchSplashImage" class="launch-splash-media hidden" alt="" />
-    <div id="launchSplashFallback" class="launch-splash-fallback">
-      <svg viewBox="0 0 320 420" aria-hidden="true">
-        <defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7dd3fc"/><stop offset="1" stop-color="#86efac"/></linearGradient></defs>
-        <circle cx="160" cy="78" r="34" fill="url(#sg)"/>
-        <path d="M95 170c25-42 105-42 130 0l28 84-35 12-24-65v159h-38v-95h-12v95h-38V201l-24 65-35-12 28-84z" fill="url(#sg)" opacity=".92"/>
-        <path d="M55 385h210" stroke="#e5f6ff" stroke-width="8" stroke-linecap="round" opacity=".65"/>
-      </svg>
-    </div>
+    <div id="launchSplashFallback" class="launch-splash-fallback"></div>
     <div class="launch-splash-shade"></div>
     <div class="launch-splash-caption">Тренировка начинается сейчас</div>
   </div>
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow">ТРЕНЕР · v0.2.5 HTTPS</div>
+        <div class="eyebrow">ТРЕНЕР · v0.2.6 HTTPS</div>
         <h1 id="screenTitle">Сегодня</h1>
       </div>
       <div class="top-actions">
@@ -1043,13 +1050,23 @@ function startLaunchSplash(){
     img.onerror=()=>{img.classList.add('hidden');fallback.classList.remove('hidden');};
     img.src=local;
   }
-  setTimeout(()=>splash.classList.add('is-hidden'),2000);
-  setTimeout(()=>splash.remove(),2350);
+  setTimeout(()=>splash.classList.add('is-hidden'),5000);
+  setTimeout(()=>splash.remove(),5350);
+}
+function applyPortraitFallback(){
+  const landscape=window.innerWidth>window.innerHeight;
+  document.body.classList.toggle('force-portrait',landscape);
+  document.body.classList.remove('rotate-left','rotate-right');
+  if(!landscape)return;
+  const raw=Number(screen.orientation?.angle ?? window.orientation ?? 90);
+  const angle=((raw%360)+360)%360;
+  document.body.classList.add(angle===270?'rotate-right':'rotate-left');
 }
 async function lockPortrait(){
+  applyPortraitFallback();
   try{
     if(screen.orientation?.lock) await screen.orientation.lock('portrait-primary');
-  }catch{/* manifest orientation remains primary enforcement for installed PWA */}
+  }catch{/* CSS fallback keeps portrait geometry when platform ignores orientation lock */}
 }
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').classList.remove('hidden');});
@@ -1057,6 +1074,8 @@ window.addEventListener('appinstalled',()=>{lockPortrait();showToast('Прило
 window.addEventListener('online',async()=>{showToast('Интернет восстановлен');if(BACKGROUND_SYNC_ALLOWED){await syncPendingSessions({silent:true});await fetchLatestPlan({silent:true});}});
 window.addEventListener('offline',()=>showToast('Офлайн: тренировка продолжит работать'));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)lockPortrait();});
+window.addEventListener('resize',applyPortraitFallback);
+window.addEventListener('orientationchange',()=>setTimeout(applyPortraitFallback,80));
 
 (async function init(){
   startLaunchSplash();
